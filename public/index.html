@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cynework AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <h1 class="brand">Cynework</h1>
+                <button id="navNewChat" type="button" class="nav-btn nav-btn-primary">+ New chat</button>
+                <button id="navSearch" type="button" class="nav-btn">Search</button>
+                <button id="navChats" type="button" class="nav-btn">Chats</button>
+                <button id="navProjects" type="button" class="nav-btn">Projects</button>
+                <button id="navArtifacts" type="button" class="nav-btn">Artifacts</button>
+            </div>
+            <div class="sidebar-bottom">
+                <div class="user-chip" id="statusText">Guest mode</div>
+                <div class="auth-btn-row">
+                    <button id="openLoginBtn" class="ghost-btn">Login</button>
+                    <button id="openRegisterBtn" class="ghost-btn">Register</button>
+                    <button id="logoutBtn" class="ghost-btn" style="display:none;">Logout</button>
+                    <a href="admin.html" id="adminLinkBtn" class="ghost-btn" style="display:none;">Admin</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="main-header">
+                <button id="planPillBtn" type="button" class="plan-pill">Free plan · Upgrade</button>
+                <div class="status"><span class="status-dot"></span>Connected</div>
+            </header>
+
+            <section class="hero">
+                <h2><span class="hero-star">✶</span>Hello, night owl</h2>
+            </section>
+
+            <section class="control-bar">
+                <div class="control-item">
+                    <label for="thinkingLevel">Thinking</label>
+                    <select id="thinkingLevel">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="control-item usage" id="usageInfo">Guest limit: 5 generations</div>
+            </section>
+
+            <main class="chat-history" id="chatHistory"></main>
+
+            <section class="pricing-panel">
+                <h3>Subscription Plans</h3>
+                <div class="pricing-grid">
+                    <article class="price-card">
+                        <h4>Daily</h4>
+                        <p>₱50/day</p>
+                        <small>100 messages/day</small>
+                        <button class="plan-btn" data-plan="daily">Avail</button>
+                    </article>
+                    <article class="price-card">
+                        <h4>Monthly</h4>
+                        <p>₱500/month</p>
+                        <small>500 messages/day</small>
+                        <button class="plan-btn" data-plan="monthly">Avail</button>
+                    </article>
+                    <article class="price-card">
+                        <h4>Yearly</h4>
+                        <p>₱6000/year</p>
+                        <small>Unlimited</small>
+                        <button class="plan-btn" data-plan="yearly">Avail</button>
+                    </article>
+                </div>
+            </section>
+
+            <footer class="chat-input-wrapper">
+                <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+                    <img id="imagePreview" src="" alt="Preview">
+                    <button type="button" id="removeImageBtn" class="remove-image-btn" aria-label="Remove image">×</button>
+                </div>
+                <form id="chatForm" class="input-container">
+                    <button type="button" id="attachBtn" class="attach-btn" aria-label="Attach image">+</button>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <textarea id="messageInput" placeholder="Type for skills" rows="1"></textarea>
+                    <button type="submit" id="sendBtn" disabled>➤</button>
+                </form>
+                <div class="footer-text">Guests: 5 generations. Registered: unlimited low thinking. Medium/high requires active plan.</div>
+            </footer>
+        </main>
+    </div>
+
+    <div id="authModal" class="modal hidden">
+        <div class="modal-card">
+            <button type="button" id="closeAuthModal" class="close-modal">×</button>
+            <h2 id="authTitle">Login</h2>
+            <form id="authForm" class="auth-form">
+                <input type="text" id="fullNameInput" placeholder="Full name (register only)" style="display:none;">
+                <input type="email" id="emailInput" placeholder="Email" required>
+                <input type="password" id="passwordInput" placeholder="Password" minlength="6" required>
+                <button type="submit" id="authSubmitBtn">Login</button>
+            </form>
+            <p id="authHint" class="auth-hint">No account? Switch to register.</p>
+            <button id="toggleAuthModeBtn" class="ghost-btn">Switch to Register</button>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>

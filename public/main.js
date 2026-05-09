@@ -1,0 +1,451 @@
+const chatHistory = document.getElementById('chatHistory');
+const chatForm = document.getElementById('chatForm');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const attachBtn = document.getElementById('attachBtn');
+const fileInput = document.getElementById('fileInput');
+const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+const imagePreview = document.getElementById('imagePreview');
+const removeImageBtn = document.getElementById('removeImageBtn');
+const thinkingLevel = document.getElementById('thinkingLevel');
+const usageInfo = document.getElementById('usageInfo');
+
+const openLoginBtn = document.getElementById('openLoginBtn');
+const openRegisterBtn = document.getElementById('openRegisterBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const adminLinkBtn = document.getElementById('adminLinkBtn');
+const statusText = document.getElementById('statusText');
+
+const authModal = document.getElementById('authModal');
+const closeAuthModal = document.getElementById('closeAuthModal');
+const authTitle = document.getElementById('authTitle');
+const authForm = document.getElementById('authForm');
+const fullNameInput = document.getElementById('fullNameInput');
+const emailInput = document.getElementById('emailInput');
+const passwordInput = document.getElementById('passwordInput');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const toggleAuthModeBtn = document.getElementById('toggleAuthModeBtn');
+const authHint = document.getElementById('authHint');
+const planButtons = document.querySelectorAll('.plan-btn');
+
+const navNewChat = document.getElementById('navNewChat');
+const navSearch = document.getElementById('navSearch');
+const navChats = document.getElementById('navChats');
+const navProjects = document.getElementById('navProjects');
+const navArtifacts = document.getElementById('navArtifacts');
+const planPillBtn = document.getElementById('planPillBtn');
+
+let sessionId = localStorage.getItem('sessionId');
+if (!sessionId) {
+  sessionId = 'session_' + Math.random().toString(36).substring(2, 15);
+  localStorage.setItem('sessionId', sessionId);
+}
+
+let currentImage = null;
+let authMode = 'login';
+let config = null;
+let accessToken = localStorage.getItem('auth_access_token') || null;
+let refreshToken = localStorage.getItem('auth_refresh_token') || null;
+let currentProfile = null;
+
+const friendlyQuotaMessage = 'AI provider rate limit exceeded. Please retry shortly.';
+
+const tryParseJson = (value) => {
+  if (typeof value !== 'string') return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeErrorMessage = (value) => {
+  if (!value) return 'Request failed.';
+  const text = typeof value === 'string' ? value : (value.message || JSON.stringify(value));
+  const parsed = tryParseJson(text);
+  const nestedMessage = parsed?.error?.message || parsed?.message || text;
+  const normalized = String(nestedMessage);
+  const lower = normalized.toLowerCase();
+
+  if (lower.includes('resource_exhausted') || lower.includes('quota exceeded') || lower.includes('too many requests')) {
+    return friendlyQuotaMessage;
+  }
+
+  return normalized;
+};
+
+const botAvatarSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c-.11.66.24 1.3.82 1.63.58.34 1.32.27 1.83-.17A2 2 0 0 1 20 6.6c.11.66-.24 1.3-.82 1.63-.58.34-1.32.27-1.83-.17a2 2 0 0 1 .45 2.87c-.45.55-1.19.74-1.84.45-.64-.28-1.07-.9-1.07-1.6 0-.66-.37-1.27-.96-1.57-.58-.3-1.31-.22-1.8.18A2 2 0 0 1 8 6.6c-.11-.66.24-1.3.82-1.63.58-.34 1.32-.27 1.83.17A2 2 0 0 1 12 2Z"/></svg>`;
+
+const appendMessage = (role, text, image = null) => {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${role}`;
+
+  if (role === 'model' || role === 'system') {
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'avatar';
+    avatarDiv.innerHTML = botAvatarSvg;
+    messageDiv.appendChild(avatarDiv);
+  }
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+
+  if (image) {
+    const img = document.createElement('img');
+    img.src = `data:${image.mimeType};base64,${image.data}`;
+    img.className = 'message-image';
+    contentDiv.appendChild(img);
+  }
+
+  if (text) {
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+    contentDiv.appendChild(textSpan);
+  }
+
+  messageDiv.appendChild(contentDiv);
+  chatHistory.appendChild(messageDiv);
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+  return contentDiv;
+};
+
+const setAuthMode = (mode) => {
+  authMode = mode;
+  if (mode === 'register') {
+    authTitle.textContent = 'Register';
+    authSubmitBtn.textContent = 'Create Account';
+    authHint.textContent = 'Register requires email verification before login.';
+    toggleAuthModeBtn.textContent = 'Switch to Login';
+    fullNameInput.style.display = 'block';
+  } else {
+    authTitle.textContent = 'Login';
+    authSubmitBtn.textContent = 'Login';
+    authHint.textContent = 'No account? Register and verify your email first.';
+    toggleAuthModeBtn.textContent = 'Switch to Register';
+    fullNameInput.style.display = 'none';
+  }
+};
+
+const openAuthModal = (mode) => {
+  setAuthMode(mode);
+  authModal.classList.remove('hidden');
+};
+
+const closeModal = () => {
+  authModal.classList.add('hidden');
+  authForm.reset();
+};
+
+const saveTokens = (nextAccessToken, nextRefreshToken) => {
+  accessToken = nextAccessToken || null;
+  refreshToken = nextRefreshToken || null;
+
+  if (accessToken) localStorage.setItem('auth_access_token', accessToken);
+  else localStorage.removeItem('auth_access_token');
+
+  if (refreshToken) localStorage.setItem('auth_refresh_token', refreshToken);
+  else localStorage.removeItem('auth_refresh_token');
+};
+
+const supabaseAuthFetch = async (path, options = {}) => {
+  const url = `${config.supabase.url}/auth/v1${path}`;
+  const headers = {
+    apikey: config.supabase.publishableKey,
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  const response = await fetch(url, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+};
+
+const getUserFromAuthApi = async () => {
+  if (!accessToken) return null;
+  const { response, data } = await supabaseAuthFetch('/user', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) return null;
+  return data;
+};
+
+const refreshAuthState = async () => {
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  const response = await fetch('/chat/auth/me', { headers });
+  const data = await response.json();
+  currentProfile = data;
+
+  if (data.authenticated) {
+    statusText.textContent = `${data.user.email} · ${data.planType}`;
+    openLoginBtn.style.display = 'none';
+    openRegisterBtn.style.display = 'none';
+    logoutBtn.style.display = 'inline-flex';
+    adminLinkBtn.style.display = 'inline-flex';
+    usageInfo.textContent = data.planType === 'free' ? 'Registered plan: Unlimited low thinking' : `Plan: ${data.planType}`;
+  } else {
+    statusText.textContent = 'Guest mode';
+    openLoginBtn.style.display = 'inline-flex';
+    openRegisterBtn.style.display = 'inline-flex';
+    logoutBtn.style.display = 'none';
+    adminLinkBtn.style.display = 'none';
+    usageInfo.textContent = 'Guest limit: 5 generations';
+  }
+};
+
+const initAuthConfig = async () => {
+  const response = await fetch('/chat/public-config');
+  config = await response.json();
+
+  if (!config?.supabase?.url || !config?.supabase?.publishableKey) {
+    appendMessage('system', 'Auth is not configured yet. Chat will run in guest mode.');
+    return;
+  }
+
+  const authUser = await getUserFromAuthApi();
+  if (!authUser) {
+    saveTokens(null, null);
+  }
+  await refreshAuthState();
+};
+
+const updateUIState = () => {
+  messageInput.style.height = 'auto';
+  messageInput.style.height = `${messageInput.scrollHeight}px`;
+  sendBtn.disabled = messageInput.value.trim() === '' && !currentImage;
+};
+
+const startNewChat = () => {
+  chatHistory.innerHTML = '';
+  sessionId = 'session_' + Math.random().toString(36).substring(2, 15);
+  localStorage.setItem('sessionId', sessionId);
+  appendMessage('system', 'Started a new chat.');
+};
+
+const wireSidebarButtons = () => {
+  navNewChat.addEventListener('click', startNewChat);
+  navSearch.addEventListener('click', () => messageInput.focus());
+  navChats.addEventListener('click', () => chatHistory.scrollTo({ top: 0, behavior: 'smooth' }));
+  navProjects.addEventListener('click', () => document.querySelector('.pricing-panel')?.scrollIntoView({ behavior: 'smooth' }));
+  navArtifacts.addEventListener('click', () => { window.location.href = '/admin.html'; });
+  planPillBtn.addEventListener('click', () => document.querySelector('.pricing-panel')?.scrollIntoView({ behavior: 'smooth' }));
+};
+
+messageInput.addEventListener('input', updateUIState);
+messageInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (messageInput.value.trim() || currentImage) {
+      chatForm.dispatchEvent(new Event('submit'));
+    }
+  }
+});
+
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload a valid image.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    currentImage = { data: evt.target.result.split(',')[1], mimeType: file.type };
+    imagePreview.src = evt.target.result;
+    imagePreviewContainer.style.display = 'inline-block';
+    updateUIState();
+  };
+  reader.readAsDataURL(file);
+});
+
+removeImageBtn.addEventListener('click', () => {
+  currentImage = null;
+  imagePreview.src = '';
+  imagePreviewContainer.style.display = 'none';
+  fileInput.value = '';
+  updateUIState();
+});
+
+openLoginBtn.addEventListener('click', () => openAuthModal('login'));
+openRegisterBtn.addEventListener('click', () => openAuthModal('register'));
+closeAuthModal.addEventListener('click', closeModal);
+toggleAuthModeBtn.addEventListener('click', () => {
+  setAuthMode(authMode === 'login' ? 'register' : 'login');
+});
+
+logoutBtn.addEventListener('click', async () => {
+  try {
+    if (accessToken && config?.supabase?.url) {
+      await supabaseAuthFetch('/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+    }
+  } finally {
+    saveTokens(null, null);
+    await refreshAuthState();
+  }
+});
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!config?.supabase?.url || !config?.supabase?.publishableKey) {
+    alert('Supabase auth is not configured.');
+    return;
+  }
+
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  try {
+    if (authMode === 'register') {
+      const fullName = fullNameInput.value.trim();
+      const { response, data } = await supabaseAuthFetch('/signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          data: { full_name: fullName }
+        })
+      });
+      if (!response.ok) throw new Error(data?.msg || data?.error_description || 'Registration failed.');
+      alert('Registration successful. Verify your email before login.');
+      setAuthMode('login');
+      closeModal();
+      return;
+    }
+
+    const { response, data } = await supabaseAuthFetch('/token?grant_type=password', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) throw new Error(data?.error_description || 'Login failed.');
+
+    saveTokens(data.access_token, data.refresh_token);
+    closeModal();
+    await refreshAuthState();
+  } catch (error) {
+    alert(error.message || 'Authentication failed.');
+  }
+});
+
+planButtons.forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    if (!accessToken) {
+      openAuthModal('login');
+      return;
+    }
+
+    const plan = btn.dataset.plan;
+    const referenceNote = prompt('Optional payment note/reference:') || '';
+
+    try {
+      const response = await fetch('/chat/subscription/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ plan, referenceNote, sessionId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to submit request.');
+      alert(`Request submitted. Send payment to ${data.gcash.accountName} (${data.gcash.number}).`);
+      window.open(data.gcash.redirectUrl, '_blank');
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+});
+
+chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const message = messageInput.value.trim();
+  if (!message && !currentImage) return;
+
+  const sentImage = currentImage;
+  messageInput.value = '';
+  messageInput.style.height = 'auto';
+  currentImage = null;
+  imagePreviewContainer.style.display = 'none';
+  imagePreview.src = '';
+  fileInput.value = '';
+  sendBtn.disabled = true;
+
+  appendMessage('user', message, sentImage);
+  const botContentDiv = appendMessage('model', '');
+  let fullResponse = '';
+
+  try {
+    const response = await fetch('/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+      },
+      body: JSON.stringify({
+        sessionId,
+        message: message || 'Analyze this image',
+        image: sentImage,
+        thinkingLevel: thinkingLevel.value
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(normalizeErrorMessage(errData?.error || `HTTP error ${response.status}`));
+    }
+
+    if (!response.body) throw new Error('Stream unavailable.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+    let pendingLine = '';
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (!value) continue;
+      pendingLine += decoder.decode(value, { stream: true });
+      const lines = pendingLine.split('\n');
+      pendingLine = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const dataStr = line.slice(6).trim();
+        if (dataStr === '[DONE]') {
+          done = true;
+          break;
+        }
+        const data = JSON.parse(dataStr);
+        if (data.error) throw new Error(normalizeErrorMessage(data.error));
+        if (data.text) {
+          fullResponse += data.text;
+          const textSpan = botContentDiv.querySelector('span') || botContentDiv.appendChild(document.createElement('span'));
+          textSpan.textContent = fullResponse;
+          chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+      }
+    }
+  } catch (error) {
+    const displayError = normalizeErrorMessage(error?.message || error);
+    if (!fullResponse) {
+      botContentDiv.parentElement.classList.add('error');
+      botContentDiv.textContent = `Error: ${displayError}`;
+    } else {
+      appendMessage('error', `Stream Error: ${displayError}`);
+    }
+  } finally {
+    updateUIState();
+    messageInput.focus();
+    refreshAuthState().catch(() => {});
+  }
+});
+
+appendMessage('system', 'Welcome to Cynework AI. Register and verify your email for unlimited low-thinking chat.');
+wireSidebarButtons();
+initAuthConfig().catch((error) => {
+  console.error(error);
+  appendMessage('error', 'Failed to load app configuration.');
+});
