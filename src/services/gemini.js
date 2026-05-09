@@ -527,19 +527,14 @@ const generateWithOpenRouter = async (history, prompt, image = null, thinkingLev
 };
 
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
+  // Hybrid Strategy Based on Thinking Level
   const providers = (() => {
-    switch (OLLAMA_PROVIDER_PRIORITY) {
-      case 'ollama-only':
-        return ['ollama'];
-      case 'openrouter-only':
-        return ['openrouter'];
-      case 'ollama':
-        return isOpenRouterFallbackEnabled() ? ['ollama', 'openrouter'] : ['ollama'];
-      case 'openrouter':
-        return ['openrouter', 'ollama'];
-      case 'auto':
-      default:
-        return ['ollama', 'openrouter'];
+    if (thinkingLevel === 'low') {
+      // Fast local mode: Try local Ollama via ngrok first, fallback to OpenRouter
+      return isOpenRouterFallbackEnabled() ? ['ollama', 'openrouter'] : ['ollama'];
+    } else {
+      // Deep Analysis / Image mode: Try OpenRouter (Cloud) first, fallback to local Ollama
+      return ['openrouter', 'ollama'];
     }
   })();
 
