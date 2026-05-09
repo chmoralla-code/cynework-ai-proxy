@@ -56,25 +56,40 @@
             <main class="chat-history" id="chatHistory"></main>
 
             <section class="pricing-panel">
-                <h3>Subscription Plans</h3>
+                <div class="pricing-header">
+                    <h3>Subscription Plans</h3>
+                    <p class="pricing-subtitle">Unlock advanced Cloud models and deeper reasoning.</p>
+                </div>
                 <div class="pricing-grid">
                     <article class="price-card">
-                        <h4>Daily</h4>
-                        <p>₱50/day</p>
-                        <small>100 messages/day</small>
-                        <button class="plan-btn" data-plan="daily">Avail</button>
+                        <h4>Daily Pass</h4>
+                        <p class="price">₱50<span>/day</span></p>
+                        <ul class="plan-features">
+                            <li>Priority Cloud Access</li>
+                            <li>Image Support</li>
+                        </ul>
+                        <button class="plan-btn ghost" data-plan="daily">Get Daily</button>
+                    </article>
+                    <article class="price-card popular">
+                        <div class="popular-badge">Most Popular</div>
+                        <h4>Monthly Pro</h4>
+                        <p class="price">₱500<span>/month</span></p>
+                        <ul class="plan-features">
+                            <li>Unlimited Cloud Access</li>
+                            <li>Deep Reasoning Models</li>
+                            <li>Priority Support</li>
+                        </ul>
+                        <button class="plan-btn" data-plan="monthly">Avail Monthly</button>
                     </article>
                     <article class="price-card">
-                        <h4>Monthly</h4>
-                        <p>₱500/month</p>
-                        <small>500 messages/day</small>
-                        <button class="plan-btn" data-plan="monthly">Avail</button>
-                    </article>
-                    <article class="price-card">
-                        <h4>Yearly</h4>
-                        <p>₱6000/year</p>
-                        <small>Unlimited</small>
-                        <button class="plan-btn" data-plan="yearly">Avail</button>
+                        <h4>Yearly Ultra</h4>
+                        <p class="price">₱6000<span>/year</span></p>
+                        <ul class="plan-features">
+                            <li>All Pro Features</li>
+                            <li>Early Access to Models</li>
+                            <li>2 Months Free</li>
+                        </ul>
+                        <button class="plan-btn ghost" data-plan="yearly">Avail Yearly</button>
                     </article>
                 </div>
             </section>
