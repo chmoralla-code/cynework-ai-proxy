@@ -2,7 +2,7 @@ const { getSupabaseServiceClient } = require('./supabase');
 const logger = require('../utils/logger');
 
 const PLAN_LIMITS = {
-  guest: { maxMessagesPerDay: 5, allowedThinking: ['low'] },
+  guest: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
   free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
   daily: { maxMessagesPerDay: 100, allowedThinking: ['low', 'medium', 'high'] },
   monthly: { maxMessagesPerDay: 500, allowedThinking: ['low', 'medium', 'high'] },

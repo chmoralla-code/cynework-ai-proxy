@@ -188,7 +188,7 @@ const refreshAuthState = async () => {
     openRegisterBtn.style.display = 'inline-flex';
     logoutBtn.style.display = 'none';
     adminLinkBtn.style.display = 'none';
-    usageInfo.textContent = 'Guest limit: 5 generations';
+    usageInfo.textContent = 'Guest mode: Unlimited low thinking';
   }
 };
 
