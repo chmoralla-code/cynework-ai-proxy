@@ -50,6 +50,9 @@ let currentProfile = null;
 
 const friendlyQuotaMessage = 'AI provider rate limit exceeded. Please retry shortly.';
 
+const pricingModal = document.getElementById('pricingModal');
+const closePricingModal = document.getElementById('closePricingModal');
+
 const tryParseJson = (value) => {
   if (typeof value !== 'string') return null;
   try {
@@ -88,7 +91,13 @@ const normalizeErrorMessage = (value) => {
   return normalized;
 };
 
-const botAvatarSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c-.11.66.24 1.3.82 1.63.58.34 1.32.27 1.83-.17A2 2 0 0 1 20 6.6c.11.66-.24 1.3-.82 1.63-.58.34-1.32.27-1.83-.17a2 2 0 0 1 .45 2.87c-.45.55-1.19.74-1.84.45-.64-.28-1.07-.9-1.07-1.6 0-.66-.37-1.27-.96-1.57-.58-.3-1.31-.22-1.8.18A2 2 0 0 1 8 6.6c-.11-.66.24-1.3.82-1.63.58-.34 1.32-.27 1.83.17A2 2 0 0 1 12 2Z"/></svg>`;
+const botAvatarSvg = `
+<div class="bot-face">
+  <div class="bot-eye left"></div>
+  <div class="bot-eye right"></div>
+  <div class="bot-mouth"></div>
+</div>
+`;
 
 const appendMessage = (role, text, image = null) => {
   const messageDiv = document.createElement('div');
@@ -239,10 +248,14 @@ const wireSidebarButtons = () => {
   navNewChat.addEventListener('click', startNewChat);
   navSearch.addEventListener('click', () => messageInput.focus());
   navChats.addEventListener('click', () => chatHistory.scrollTo({ top: 0, behavior: 'smooth' }));
-  navProjects.addEventListener('click', () => document.querySelector('.pricing-panel')?.scrollIntoView({ behavior: 'smooth' }));
+  navProjects.addEventListener('click', () => pricingModal.classList.remove('hidden'));
   navArtifacts.addEventListener('click', () => { window.location.href = '/admin.html'; });
-  planPillBtn.addEventListener('click', () => document.querySelector('.pricing-panel')?.scrollIntoView({ behavior: 'smooth' }));
+  planPillBtn.addEventListener('click', () => pricingModal.classList.remove('hidden'));
 };
+
+closePricingModal.addEventListener('click', () => {
+  pricingModal.classList.add('hidden');
+});
 
 messageInput.addEventListener('input', updateUIState);
 messageInput.addEventListener('keydown', (e) => {

@@ -56,7 +56,27 @@
 
             <main class="chat-history" id="chatHistory"></main>
 
-            <section class="pricing-panel">
+            <footer class="chat-input-wrapper">
+                <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+                    <img id="imagePreview" src="" alt="Preview">
+                    <button type="button" id="removeImageBtn" class="remove-image-btn" aria-label="Remove image">×</button>
+                </div>
+                <form id="chatForm" class="input-container">
+                    <button type="button" id="attachBtn" class="attach-btn" aria-label="Attach image">+</button>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <textarea id="messageInput" placeholder="Type for skills" rows="1"></textarea>
+                    <button type="submit" id="sendBtn" disabled>➤</button>
+                </form>
+                <div class="footer-text">Guests & Registered: unlimited low thinking. Medium/high modes require an active plan.</div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Pricing Modal -->
+    <div id="pricingModal" class="modal hidden">
+        <div class="modal-card pricing-modal-card">
+            <button type="button" id="closePricingModal" class="close-modal">×</button>
+            <div class="pricing-panel" style="margin-top: 0; box-shadow: none; border: none; background: transparent;">
                 <div class="pricing-header">
                     <h3>Subscription Plans</h3>
                     <p class="pricing-subtitle">Unlock advanced Cloud models and deeper reasoning.</p>
@@ -93,22 +113,8 @@
                         <button class="plan-btn ghost" data-plan="yearly" data-qr="qr-yearly.jpg" data-price="₱6000">Avail Yearly</button>
                     </article>
                 </div>
-            </section>
-
-            <footer class="chat-input-wrapper">
-                <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
-                    <img id="imagePreview" src="" alt="Preview">
-                    <button type="button" id="removeImageBtn" class="remove-image-btn" aria-label="Remove image">×</button>
-                </div>
-                <form id="chatForm" class="input-container">
-                    <button type="button" id="attachBtn" class="attach-btn" aria-label="Attach image">+</button>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                    <textarea id="messageInput" placeholder="Type for skills" rows="1"></textarea>
-                    <button type="submit" id="sendBtn" disabled>➤</button>
-                </form>
-                <div class="footer-text">Guests & Registered: unlimited low thinking. Medium/high modes require an active plan.</div>
-            </footer>
-        </main>
+            </div>
+        </div>
     </div>
 
     <div id="authModal" class="modal hidden">
