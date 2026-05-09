@@ -59,6 +59,20 @@ const tryParseJson = (value) => {
   }
 };
 
+const showToast = (message, type = 'info') => {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, 3000);
+};
+
 const normalizeErrorMessage = (value) => {
   if (!value) return 'Request failed.';
   const text = typeof value === 'string' ? value : (value.message || JSON.stringify(value));
@@ -290,7 +304,7 @@ logoutBtn.addEventListener('click', async () => {
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!config?.supabase?.url || !config?.supabase?.publishableKey) {
-    alert('Supabase auth is not configured.');
+    showToast('Supabase auth is not configured.', 'error');
     return;
   }
 
@@ -309,7 +323,7 @@ authForm.addEventListener('submit', async (e) => {
         })
       });
       if (!response.ok) throw new Error(data?.msg || data?.error_description || 'Registration failed.');
-      alert('Registration successful. Verify your email before login.');
+      showToast('Registration successful! Please verify your email.', 'success');
       setAuthMode('login');
       closeModal();
       return;
@@ -322,10 +336,11 @@ authForm.addEventListener('submit', async (e) => {
     if (!response.ok) throw new Error(data?.error_description || 'Login failed.');
 
     saveTokens(data.access_token, data.refresh_token);
+    showToast('Login successful!', 'success');
     closeModal();
     await refreshAuthState();
   } catch (error) {
-    alert(error.message || 'Authentication failed.');
+    showToast(error.message || 'Authentication failed.', 'error');
   }
 });
 
@@ -368,17 +383,17 @@ paymentForm.addEventListener('submit', async (e) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Failed to submit payment reference.');
     
-    alert('Payment reference submitted successfully. Your account will be upgraded once the admin confirms the payment.');
+    showToast('Payment submitted! Awaiting admin approval.', 'success');
     paymentModal.classList.add('hidden');
     paymentForm.reset();
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, 'error');
   }
 });
 
 trackPaymentBtn.addEventListener('click', async () => {
   if (!accessToken) {
-    alert('Please log in to track your payment status.');
+    showToast('Please log in to track your payment status.', 'error');
     return;
   }
   try {
@@ -387,12 +402,12 @@ trackPaymentBtn.addEventListener('click', async () => {
     });
     const data = await response.json();
     if (data.profile && data.profile.plan_status) {
-      alert(`Current Plan: ${data.profile.plan || 'Free'}\nStatus: ${data.profile.plan_status.toUpperCase()}`);
+      showToast(`Current Plan: ${data.profile.plan || 'Free'} | Status: ${data.profile.plan_status.toUpperCase()}`, 'info');
     } else {
-      alert('No pending payments found.');
+      showToast('No pending payments found.', 'info');
     }
   } catch (error) {
-    alert('Could not fetch status.');
+    showToast('Could not fetch status.', 'error');
   }
 });
 
