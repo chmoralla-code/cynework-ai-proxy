@@ -181,14 +181,14 @@ const refreshAuthState = async () => {
     openRegisterBtn.style.display = 'none';
     logoutBtn.style.display = 'inline-flex';
     adminLinkBtn.style.display = 'inline-flex';
-    usageInfo.textContent = data.planType === 'free' ? 'Registered plan: Unlimited low thinking' : `Plan: ${data.planType}`;
+    usageInfo.textContent = data.planType === 'free' ? 'Registered plan: Unlimited requests' : `Plan: ${data.planType}`;
   } else {
     statusText.textContent = 'Guest mode';
     openLoginBtn.style.display = 'inline-flex';
     openRegisterBtn.style.display = 'inline-flex';
     logoutBtn.style.display = 'none';
     adminLinkBtn.style.display = 'none';
-    usageInfo.textContent = 'Guest mode: Unlimited low thinking';
+    usageInfo.textContent = 'Guest mode: Unlimited requests';
   }
 };
 

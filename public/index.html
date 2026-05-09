@@ -45,12 +45,12 @@
                 <div class="control-item">
                     <label for="thinkingLevel">Thinking</label>
                     <select id="thinkingLevel">
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
+                        <option value="low">Low (Fast Local)</option>
+                        <option value="medium">Medium (Supports Images, Ollama Cloud)</option>
+                        <option value="high">High (Deep Analysis, Supports Images, Ollama Cloud)</option>
                     </select>
                 </div>
-                <div class="control-item usage" id="usageInfo">Guest mode: Unlimited low thinking</div>
+                <div class="control-item usage" id="usageInfo">Guest mode: Unlimited thinking</div>
             </section>
 
             <main class="chat-history" id="chatHistory"></main>
@@ -90,7 +90,7 @@
                     <textarea id="messageInput" placeholder="Type for skills" rows="1"></textarea>
                     <button type="submit" id="sendBtn" disabled>➤</button>
                 </form>
-                <div class="footer-text">Guests & Registered: unlimited low thinking. Medium/high requires active plan.</div>
+                <div class="footer-text">Guests & Registered: unlimited requests. Medium/high modes use Ollama Cloud.</div>
             </footer>
         </main>
     </div>
