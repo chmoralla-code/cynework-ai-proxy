@@ -335,27 +335,65 @@ planButtons.forEach((btn) => {
       openAuthModal('login');
       return;
     }
-
     const plan = btn.dataset.plan;
-    const referenceNote = prompt('Optional payment note/reference:') || '';
-
-    try {
-      const response = await fetch('/chat/subscription/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ plan, referenceNote, sessionId })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to submit request.');
-      alert(`Request submitted. Send payment to ${data.gcash.accountName} (${data.gcash.number}).`);
-      window.open(data.gcash.redirectUrl, '_blank');
-    } catch (error) {
-      alert(error.message);
-    }
+    const qrSrc = btn.dataset.qr;
+    const priceText = btn.dataset.price;
+    
+    selectedPlanInput.value = plan;
+    qrImage.src = qrSrc;
+    paymentAmountText.textContent = `Amount to pay: ${priceText}`;
+    paymentModal.classList.remove('hidden');
   });
+});
+
+closePaymentModal.addEventListener('click', () => {
+  paymentModal.classList.add('hidden');
+  paymentForm.reset();
+});
+
+paymentForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plan = selectedPlanInput.value;
+  const referenceNote = referenceInput.value.trim();
+  
+  try {
+    const response = await fetch('/chat/subscription/request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ plan, referenceNote, sessionId })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to submit payment reference.');
+    
+    alert('Payment reference submitted successfully. Your account will be upgraded once the admin confirms the payment.');
+    paymentModal.classList.add('hidden');
+    paymentForm.reset();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+trackPaymentBtn.addEventListener('click', async () => {
+  if (!accessToken) {
+    alert('Please log in to track your payment status.');
+    return;
+  }
+  try {
+    const response = await fetch('/chat/auth/me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const data = await response.json();
+    if (data.profile && data.profile.plan_status) {
+      alert(`Current Plan: ${data.profile.plan || 'Free'}\nStatus: ${data.profile.plan_status.toUpperCase()}`);
+    } else {
+      alert('No pending payments found.');
+    }
+  } catch (error) {
+    alert('Could not fetch status.');
+  }
 });
 
 chatForm.addEventListener('submit', async (e) => {
@@ -451,7 +489,7 @@ chatForm.addEventListener('submit', async (e) => {
   }
 });
 
-appendMessage('system', 'Welcome to Cynework AI. Register and verify your email for unlimited low-thinking chat.');
+appendMessage('system', 'Welcome to cyAIrhiel. Register and verify your email for unlimited low-thinking chat.');
 wireSidebarButtons();
 initAuthConfig().catch((error) => {
   console.error(error);

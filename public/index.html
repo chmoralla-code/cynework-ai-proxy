@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cynework AI</title>
+    <title>cyAIrhiel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     <div class="shell">
         <aside class="sidebar">
             <div class="sidebar-top">
-                <h1 class="brand">Cynework</h1>
+                <h1 class="brand">cyAIrhiel</h1>
                 <button id="navNewChat" type="button" class="nav-btn nav-btn-primary">+ New chat</button>
                 <button id="navSearch" type="button" class="nav-btn">Search</button>
                 <button id="navChats" type="button" class="nav-btn">Chats</button>
@@ -21,6 +21,7 @@
                 <button id="navArtifacts" type="button" class="nav-btn">Artifacts</button>
             </div>
             <div class="sidebar-bottom">
+                <button id="trackPaymentBtn" class="ghost-btn" style="width: 100%; margin-bottom: 10px;">Track Payment Status</button>
                 <div class="user-chip" id="statusText">Guest mode</div>
                 <div class="auth-btn-row">
                     <button id="openLoginBtn" class="ghost-btn">Login</button>
@@ -68,7 +69,7 @@
                             <li>Priority Cloud Access</li>
                             <li>Image Support</li>
                         </ul>
-                        <button class="plan-btn ghost" data-plan="daily">Get Daily</button>
+                        <button class="plan-btn ghost" data-plan="daily" data-qr="qr-daily.jpg" data-price="₱50">Get Daily</button>
                     </article>
                     <article class="price-card popular">
                         <div class="popular-badge">Most Popular</div>
@@ -79,7 +80,7 @@
                             <li>Deep Reasoning Models</li>
                             <li>Priority Support</li>
                         </ul>
-                        <button class="plan-btn" data-plan="monthly">Avail Monthly</button>
+                        <button class="plan-btn" data-plan="monthly" data-qr="qr-monthly.jpg" data-price="₱500">Avail Monthly</button>
                     </article>
                     <article class="price-card">
                         <h4>Yearly Ultra</h4>
@@ -89,7 +90,7 @@
                             <li>Early Access to Models</li>
                             <li>2 Months Free</li>
                         </ul>
-                        <button class="plan-btn ghost" data-plan="yearly">Avail Yearly</button>
+                        <button class="plan-btn ghost" data-plan="yearly" data-qr="qr-yearly.jpg" data-price="₱6000">Avail Yearly</button>
                     </article>
                 </div>
             </section>
@@ -105,7 +106,7 @@
                     <textarea id="messageInput" placeholder="Type for skills" rows="1"></textarea>
                     <button type="submit" id="sendBtn" disabled>➤</button>
                 </form>
-                <div class="footer-text">Guests & Registered: unlimited requests. Medium/high modes use Ollama Cloud.</div>
+                <div class="footer-text">Guests & Registered: unlimited low thinking. Medium/high modes require an active plan.</div>
             </footer>
         </main>
     </div>
@@ -122,6 +123,20 @@
             </form>
             <p id="authHint" class="auth-hint">No account? Switch to register.</p>
             <button id="toggleAuthModeBtn" class="ghost-btn">Switch to Register</button>
+        </div>
+    </div>
+
+    <div id="paymentModal" class="modal hidden">
+        <div class="modal-card" style="text-align: center;">
+            <button type="button" id="closePaymentModal" class="close-modal">×</button>
+            <h2>Pay via GCash</h2>
+            <p id="paymentAmountText" style="margin-bottom: 15px; color: var(--accent); font-weight: 600;"></p>
+            <img id="qrImage" src="" alt="GCash QR Code" style="max-width: 250px; border-radius: 12px; margin-bottom: 15px; border: 2px solid var(--accent);">
+            <form id="paymentForm" class="auth-form">
+                <input type="hidden" id="selectedPlanInput">
+                <input type="text" id="referenceInput" placeholder="Enter GCash Reference No." required>
+                <button type="submit">Submit Payment</button>
+            </form>
         </div>
     </div>
     <script src="main.js"></script>
