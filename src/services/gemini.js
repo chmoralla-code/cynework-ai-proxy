@@ -298,6 +298,12 @@ const requestOpenRouter = async (payload) => {
 
 const requestOllama = async (payload) => {
   const headers = { 'Content-Type': 'application/json' };
+  
+  // Add skip-warning header for ngrok tunnels to prevent interstitial page
+  if (OLLAMA_BASE_URL.toLowerCase().includes('ngrok-free.dev') || OLLAMA_BASE_URL.toLowerCase().includes('ngrok.io')) {
+    headers['ngrok-skip-browser-warning'] = 'true';
+  }
+
   const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com');
   if (usingCloudOllama && !process.env.OLLAMA_API_KEY) {
     throw new Error('OLLAMA_API_KEY is not set on the server.');
