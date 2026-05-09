@@ -27,6 +27,11 @@ const THINKING_MODE = {
     model: process.env.OPENROUTER_MODEL_HIGH || DEFAULT_MODEL,
     maxOutputTokens: 2200,
     instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation.'
+  },
+  ultra: {
+    model: process.env.OPENROUTER_MODEL_ULTRA || 'perplexity/llama-3.1-sonar-huge-128k-online',
+    maxOutputTokens: 4000,
+    instruction: 'Pull up-to-date answers from the internet and answer accurately like ChatGPT 5.5. Provide deep research and comprehensive facts.'
   }
 };
 
