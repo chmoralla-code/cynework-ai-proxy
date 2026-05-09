@@ -382,6 +382,20 @@ textarea::placeholder {
     margin-top: 8px;
 }
 
+/* Typing Indicator */
+.typing-indicator {
+    display: inline-block;
+    color: var(--muted);
+    font-style: italic;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
 .footer-text {
     text-align: center;
     font-size: 0.76rem;

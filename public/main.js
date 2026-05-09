@@ -374,7 +374,10 @@ chatForm.addEventListener('submit', async (e) => {
 
   appendMessage('user', message, sentImage);
   const botContentDiv = appendMessage('model', '');
+  botContentDiv.parentElement.classList.add('loading');
+  botContentDiv.innerHTML = '<span class="typing-indicator">answering...</span>';
   let fullResponse = '';
+  let isFirstChunk = true;
 
   try {
     const response = await fetch('/chat/stream', {
@@ -421,8 +424,13 @@ chatForm.addEventListener('submit', async (e) => {
         const data = JSON.parse(dataStr);
         if (data.error) throw new Error(normalizeErrorMessage(data.error));
         if (data.text) {
+          if (isFirstChunk) {
+            botContentDiv.parentElement.classList.remove('loading');
+            botContentDiv.innerHTML = '<span></span>';
+            isFirstChunk = false;
+          }
           fullResponse += data.text;
-          const textSpan = botContentDiv.querySelector('span') || botContentDiv.appendChild(document.createElement('span'));
+          const textSpan = botContentDiv.querySelector('span');
           textSpan.textContent = fullResponse;
           chatHistory.scrollTop = chatHistory.scrollHeight;
         }
