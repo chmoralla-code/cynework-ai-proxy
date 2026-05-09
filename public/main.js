@@ -34,6 +34,8 @@ const navChats = document.getElementById('navChats');
 const navProjects = document.getElementById('navProjects');
 const navArtifacts = document.getElementById('navArtifacts');
 const planPillBtn = document.getElementById('planPillBtn');
+const mobileNavToggle = document.getElementById('mobileNavToggle');
+const sidebar = document.querySelector('.sidebar');
 
 let sessionId = localStorage.getItem('sessionId');
 if (!sessionId) {
@@ -52,6 +54,21 @@ const friendlyQuotaMessage = 'AI provider rate limit exceeded. Please retry shor
 
 const pricingModal = document.getElementById('pricingModal');
 const closePricingModal = document.getElementById('closePricingModal');
+
+if (mobileNavToggle && sidebar) {
+  mobileNavToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sidebar.classList.toggle('active');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 980 && sidebar.classList.contains('active')) {
+      if (!sidebar.contains(e.target) && e.target !== mobileNavToggle) {
+        sidebar.classList.remove('active');
+      }
+    }
+  });
+}
 
 const tryParseJson = (value) => {
   if (typeof value !== 'string') return null;
