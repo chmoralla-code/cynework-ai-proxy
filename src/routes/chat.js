@@ -78,10 +78,8 @@ const getChatErrorResponse = (error) => {
     };
   }
   if (error?.status === 404) {
-    if (quotaErrorMessage.includes('ollama')) {
-      return { status: 502, body: { error: 'Configured Ollama model is unavailable. Pull the model locally or change OLLAMA_LOCAL_MODELS/OLLAMA_CLOUD_MODELS.' } };
-    }
-    return { status: 502, body: { error: 'Configured model is unavailable. Update provider model configuration.' } };
+    const provider = quotaErrorMessage.includes('ollama') ? 'Ollama' : 'OpenRouter';
+    return { status: 502, body: { error: `Model Unavailable: The configured ${provider} model could not be found. Please ensure it is pulled/active.` } };
   }
   if (error?.status === 401) {
     return {
