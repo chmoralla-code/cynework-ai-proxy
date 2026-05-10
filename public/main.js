@@ -441,6 +441,30 @@ trackPaymentBtn.addEventListener('click', async () => {
   }
 });
 
+// Audio notification for message completion
+const playCompletionSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+    oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.1);
+  } catch (e) {
+    console.warn('Audio feedback failed', e);
+  }
+};
+
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const message = messageInput.value.trim();
@@ -502,6 +526,7 @@ chatForm.addEventListener('submit', async (e) => {
         const dataStr = line.slice(6).trim();
         if (dataStr === '[DONE]') {
           done = true;
+          playCompletionSound();
           break;
         }
         const data = JSON.parse(dataStr);
@@ -534,7 +559,7 @@ chatForm.addEventListener('submit', async (e) => {
   }
 });
 
-appendMessage('system', 'Welcome to cyAIrhiel. Register and verify your email for unlimited low-thinking chat.');
+appendMessage('system', 'Welcome to SpeedAI. Register and verify your email for unlimited low-thinking chat.');
 wireSidebarButtons();
 initAuthConfig().catch((error) => {
   console.error(error);

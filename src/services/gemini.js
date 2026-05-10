@@ -5,6 +5,7 @@ const OPENROUTER_MODELS_URL = process.env.OPENROUTER_MODELS_URL || 'https://open
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const OLLAMA_CHAT_PATH = process.env.OLLAMA_CHAT_PATH || '/api/chat';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '489897d07d8442ea9fecf0e8ce7fb657.sahF7RyGff8biXCRPKlt6E9a';
 const OLLAMA_PROVIDER_PRIORITY = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase();
 
 const freeModelsCache = {
