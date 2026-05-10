@@ -362,6 +362,12 @@ const buildOllamaModelCandidates = (thinkingLevel) => {
     .filter((value, index, array) => array.indexOf(value) === index);
 };
 
+const sanitizeAssistantResponse = (text) => {
+  if (typeof text !== 'string') return '';
+  // Strip trailing JSON artifacts like '}] or ]}) or just }]
+  return text.trim().replace(/['"{( ]*[}\]]+\)*\s*$/g, '').trim();
+};
+
 const generateWithOllama = async (history, prompt, image, thinkingLevel, planType) => {
   if (!isOllamaEnabled()) {
     throw Object.assign(new Error('Ollama provider is disabled.'), { status: 503 });
@@ -410,8 +416,10 @@ const generateWithOllama = async (history, prompt, image, thinkingLevel, planTyp
         }
       );
 
-      const assistantText = (response?.message?.content || '').toString().trim();
-      if (!assistantText) throw new Error('Ollama returned an empty response.');
+      const rawAssistantText = (response?.message?.content || '').toString().trim();
+      if (!rawAssistantText) throw new Error('Ollama returned an empty response.');
+
+      const assistantText = sanitizeAssistantResponse(rawAssistantText);
 
       return (async function* streamSingleResponse() {
         yield { text: assistantText };
