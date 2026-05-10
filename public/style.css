@@ -95,20 +95,28 @@ body {
     background: linear-gradient(90deg, #fff, #a0a0a0);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 0 #ccc, 0 2px 0 #c9c9c9, 0 3px 0 #bbb, 0 4px 0 #b9b9b9, 0 5px 0 #aaa, 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15);
+    animation: float 3s ease-in-out infinite;
+    transform-style: preserve-3d;
 }
 
-.nav-btn {
-    width: 100%;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--muted);
-    border-radius: 10px;
-    text-align: left;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotateX(0); }
+    50% { transform: translateY(-5px) rotateX(10deg); }
+}
+
+.nav-btn, .ghost-btn, .plan-btn, #sendBtn {
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+.nav-btn:active, .ghost-btn:active, .plan-btn:active, #sendBtn:active {
+    transform: scale(0.95) translateY(2px);
+}
+
+.nav-btn:hover, .ghost-btn:hover, .plan-btn:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
 .nav-btn:hover {
@@ -234,12 +242,27 @@ body {
     background: linear-gradient(90deg, #fff, #b5aea3);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    perspective: 1000px;
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    cursor: default;
+}
+
+.hero h2:hover {
+    transform: rotateY(15deg) rotateX(5deg) scale(1.02);
+    text-shadow: -10px 10px 20px rgba(0,0,0,0.5);
 }
 
 .hero-star {
     color: var(--accent);
     margin-right: 10px;
     -webkit-text-fill-color: var(--accent);
+    display: inline-block;
+    animation: rotate3d 4s linear infinite;
+}
+
+@keyframes rotate3d {
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(360deg); }
 }
 
 .control-bar {
@@ -300,17 +323,28 @@ body {
 
 .message.user .message-content {
     max-width: 80%;
-    background: #2a2a2a;
     background: linear-gradient(135deg, #2d2d2d, #222);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 18px 18px 4px 18px;
     padding: 14px 18px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(255,255,255,0.05);
+    transform: perspective(500px) rotateX(2deg);
+    transition: all 0.3s ease;
 }
 
-.message.model .message-content,
-.message.system .message-content {
+.message.user .message-content:hover {
+    transform: perspective(500px) rotateX(0deg) translateY(-2px);
+    box-shadow: 7px 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+.message.model .message-content {
     max-width: calc(100% - 56px);
+    transform: perspective(500px) rotateX(-2deg);
+    transition: all 0.3s ease;
+}
+
+.message.model .message-content:hover {
+    transform: perspective(500px) rotateX(0deg) translateY(-2px);
 }
 
 .avatar {
@@ -422,15 +456,21 @@ body {
     border-radius: 14px;
     background: #2a2a2a;
     padding: 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
     display: flex;
     flex-direction: column;
+    transform-style: preserve-3d;
+    perspective: 1000px;
 }
 
 .price-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    border-color: #4a4a4a;
+    transform: translateY(-10px) rotateX(5deg) rotateY(-5deg);
+    box-shadow: 20px 20px 40px rgba(0, 0, 0, 0.5);
+    border-color: var(--accent);
+}
+
+.price-card > * {
+    transform: translateZ(20px);
 }
 
 .price-card.popular {
