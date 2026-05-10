@@ -1,15 +1,13 @@
 const logger = require('../utils/logger');
 
 const OPENROUTER_API_URL = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const OLLAMA_CHAT_PATH = process.env.OLLAMA_CHAT_PATH || '/api/chat';
-const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '';
 
 const THINKING_MODE = {
   low: {
     ollamaModel: 'gemma4:31b',
-    openRouterModel: 'google/gemma-2-27b-it',
+    openRouterModel: 'google/gemma-4-31b-it',
     maxOutputTokens: 2000,
     instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
@@ -135,12 +133,13 @@ const sanitizeAssistantResponse = (text) => {
 };
 
 const requestOpenRouter = async (payload) => {
-  if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set.');
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set.');
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
@@ -157,7 +156,8 @@ const requestOpenRouter = async (payload) => {
 const requestOllama = async (payload) => {
   const headers = { 'Content-Type': 'application/json' };
   if (OLLAMA_BASE_URL.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
-  if (OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+  const apiKey = process.env.OLLAMA_API_KEY;
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
   try {
     const response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
