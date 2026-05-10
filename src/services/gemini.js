@@ -15,7 +15,7 @@ const freeModelsCache = {
 
 const THINKING_MODE = {
   low: {
-    model: process.env.OPENROUTER_MODEL_LOW || 'qwen/qwen-2.5-coder-32b-instruct',
+    model: process.env.OPENROUTER_MODEL_LOW || 'google/gemma-2-27b-it',
     maxOutputTokens: 2000,
     instruction: 'Give concise, practical answers with minimal reasoning steps. You are SpeedAI, the fastest coding and vision assistant. The creator of this website is cyrhiel moralla.'
   },
@@ -345,7 +345,7 @@ const buildOllamaModelCandidates = (thinkingLevel) => {
   
   // High-performance defaults for Ollama Cloud (Vision + Coding)
   const defaults = {
-    LOW: 'qwen2.5-coder:7b',
+    LOW: 'gemma4:31b',
     MEDIUM: 'llama3.2-vision:11b',
     HIGH: 'llama3.2-vision:latest',
     ULTRA: 'llama3.2-vision:latest'
