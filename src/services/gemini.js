@@ -9,7 +9,7 @@ const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '';
 const THINKING_MODE = {
   low: {
     ollamaModel: 'gemma2:27b',
-    openRouterModel: 'google/gemma-2-9b-it:free',
+    openRouterModel: 'google/gemma-2-9b-it',
     maxOutputTokens: 2000,
     instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
@@ -27,7 +27,7 @@ const THINKING_MODE = {
   },
   ultra: {
     ollamaModel: 'llama3.2-vision:latest',
-    openRouterModel: 'perplexity/sonar',
+    openRouterModel: 'perplexity/llama-3-sonar-large-32k-online',
     maxOutputTokens: 8000,
     instruction: 'Pull up-to-date answers from the internet. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   }
