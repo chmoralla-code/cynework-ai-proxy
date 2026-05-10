@@ -419,84 +419,149 @@ body {
 }
 
 .pricing-panel {
-    border: 1px solid #323232;
-    border-radius: 16px;
-    background: linear-gradient(145deg, #242424, #1c1c1c);
-    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(10px);
+    padding: 30px;
     margin-top: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
-.pricing-header {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.pricing-panel h3 {
-    font-size: 1.2rem;
-    color: var(--text);
-    margin-bottom: 4px;
-    font-weight: 600;
-}
-
-.pricing-subtitle {
-    font-size: 0.86rem;
-    color: var(--muted);
+.pricing-header h3 {
+    font-size: 1.8rem;
+    background: linear-gradient(to right, #fff, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    font-weight: 700;
 }
 
 .pricing-grid {
     display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin-top: 20px;
 }
 
 .price-card {
     position: relative;
-    border: 1px solid #3a3a3a;
-    border-radius: 14px;
-    background: #2a2a2a;
-    padding: 20px;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
+    background: rgba(45, 45, 45, 0.4);
+    padding: 24px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: flex;
     flex-direction: column;
     transform-style: preserve-3d;
     perspective: 1000px;
+    text-align: center;
 }
 
 .price-card:hover {
-    transform: translateY(-10px) rotateX(5deg) rotateY(-5deg);
-    box-shadow: 20px 20px 40px rgba(0, 0, 0, 0.5);
+    transform: translateY(-15px) rotateX(8deg) rotateY(-8deg);
+    box-shadow: 25px 25px 50px rgba(0, 0, 0, 0.6);
     border-color: var(--accent);
+    background: rgba(55, 55, 55, 0.6);
 }
 
 .price-card > * {
-    transform: translateZ(20px);
+    transform: translateZ(25px);
 }
 
 .price-card.popular {
-    border-color: var(--accent);
-    background: linear-gradient(180deg, #322622 0%, #2a2a2a 100%);
+    border: 2px solid var(--accent);
+    background: linear-gradient(145deg, rgba(209, 116, 84, 0.1), rgba(45, 45, 45, 0.4));
 }
 
 .popular-badge {
     position: absolute;
-    top: -12px;
+    top: -14px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateZ(30px);
     background: var(--accent);
     color: #fff;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 6px 14px;
     border-radius: 20px;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     text-transform: uppercase;
+    box-shadow: 0 5px 15px rgba(209, 116, 84, 0.4);
 }
 
 .price-card h4 {
-    margin-bottom: 12px;
-    font-size: 1.05rem;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
     color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.price-card .price {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: #fff;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.price-card .price span {
+    font-size: 1rem;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+    text-align: left;
+}
+
+.plan-features li {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.plan-features li::before {
+    content: '✦';
+    color: var(--accent);
+    font-size: 0.8rem;
+}
+
+.plan-btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.plan-btn.ghost {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plan-btn:hover {
+    transform: translateZ(10px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    filter: brightness(1.2);
+}
+
+.plan-btn:active {
+    transform: translateZ(5px) scale(0.98);
 }
 
 .price-card .price {

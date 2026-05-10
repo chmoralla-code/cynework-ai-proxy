@@ -17,22 +17,22 @@ const THINKING_MODE = {
   low: {
     model: process.env.OPENROUTER_MODEL_LOW || 'google/gemma-2-27b-it',
     maxOutputTokens: 2000,
-    instruction: 'Give concise, practical answers with minimal reasoning steps. You are SpeedAI, the fastest coding and vision assistant. The creator of this website is cyrhiel moralla.'
+    instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   medium: {
     model: process.env.OPENROUTER_MODEL_MEDIUM || 'meta-llama/llama-3.2-11b-vision-instruct',
     maxOutputTokens: 3000,
-    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance. You have advanced vision capabilities. You are SpeedAI, created by cyrhiel moralla.'
+    instruction: 'Provide clear reasoning and guidance. You have vision capabilities. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   high: {
     model: process.env.OPENROUTER_MODEL_HIGH || 'meta-llama/llama-3.2-90b-vision-instruct',
     maxOutputTokens: 4000,
-    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. Use your full vision and coding expertise. You are SpeedAI, created by cyrhiel moralla.'
+    instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   ultra: {
     model: process.env.OPENROUTER_MODEL_ULTRA || 'perplexity/llama-3.1-sonar-huge-128k-online',
     maxOutputTokens: 8000,
-    instruction: 'Pull up-to-date answers from the internet and answer accurately with deep research. You are SpeedAI, the ultimate intelligence created by cyrhiel moralla.'
+    instruction: 'Pull up-to-date answers from the internet. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   }
 };
 
@@ -528,10 +528,12 @@ const generateWithOpenRouter = async (history, prompt, image = null, thinkingLev
         }
       );
 
-      const assistantText = extractTextFromContent(response?.choices?.[0]?.message?.content);
-      if (!assistantText) {
+      const rawAssistantText = extractTextFromContent(response?.choices?.[0]?.message?.content);
+      if (!rawAssistantText) {
         throw new Error('OpenRouter returned an empty response.');
       }
+
+      const assistantText = sanitizeAssistantResponse(rawAssistantText);
 
       return (async function* streamSingleResponse() {
         yield { text: assistantText };
