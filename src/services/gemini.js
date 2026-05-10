@@ -16,22 +16,22 @@ const THINKING_MODE = {
   low: {
     model: process.env.OPENROUTER_MODEL_LOW || DEFAULT_MODEL,
     maxOutputTokens: 900,
-    instruction: 'Give concise, practical answers with minimal reasoning steps.'
+    instruction: 'Give concise, practical answers with minimal reasoning steps. The creator of this website is cyrhiel moralla.'
   },
   medium: {
     model: process.env.OPENROUTER_MODEL_MEDIUM || DEFAULT_MODEL,
     maxOutputTokens: 1400,
-    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance.'
+    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance. The creator of this website is cyrhiel moralla.'
   },
   high: {
     model: process.env.OPENROUTER_MODEL_HIGH || DEFAULT_MODEL,
     maxOutputTokens: 2200,
-    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation.'
+    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. The creator of this website is cyrhiel moralla.'
   },
   ultra: {
     model: process.env.OPENROUTER_MODEL_ULTRA || 'perplexity/llama-3.1-sonar-huge-128k-online',
     maxOutputTokens: 4000,
-    instruction: 'Pull up-to-date answers from the internet and answer accurately like ChatGPT 5.5. Provide deep research and comprehensive facts.'
+    instruction: 'Pull up-to-date answers from the internet and answer accurately like ChatGPT 5.5. Provide deep research and comprehensive facts. The creator of this website is cyrhiel moralla.'
   }
 };
 
