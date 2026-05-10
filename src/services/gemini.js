@@ -14,24 +14,24 @@ const freeModelsCache = {
 
 const THINKING_MODE = {
   low: {
-    model: process.env.OPENROUTER_MODEL_LOW || DEFAULT_MODEL,
-    maxOutputTokens: 900,
-    instruction: 'Give concise, practical answers with minimal reasoning steps. The creator of this website is cyrhiel moralla.'
+    model: process.env.OPENROUTER_MODEL_LOW || 'qwen/qwen-2.5-coder-32b-instruct',
+    maxOutputTokens: 2000,
+    instruction: 'Give concise, practical answers with minimal reasoning steps. You are SpeedAI, the fastest coding and vision assistant. The creator of this website is cyrhiel moralla.'
   },
   medium: {
-    model: process.env.OPENROUTER_MODEL_MEDIUM || DEFAULT_MODEL,
-    maxOutputTokens: 1400,
-    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance. The creator of this website is cyrhiel moralla.'
+    model: process.env.OPENROUTER_MODEL_MEDIUM || 'meta-llama/llama-3.2-11b-vision-instruct',
+    maxOutputTokens: 3000,
+    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance. You have advanced vision capabilities. You are SpeedAI, created by cyrhiel moralla.'
   },
   high: {
-    model: process.env.OPENROUTER_MODEL_HIGH || DEFAULT_MODEL,
-    maxOutputTokens: 2200,
-    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. The creator of this website is cyrhiel moralla.'
+    model: process.env.OPENROUTER_MODEL_HIGH || 'meta-llama/llama-3.2-90b-vision-instruct',
+    maxOutputTokens: 4000,
+    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. Use your full vision and coding expertise. You are SpeedAI, created by cyrhiel moralla.'
   },
   ultra: {
     model: process.env.OPENROUTER_MODEL_ULTRA || 'perplexity/llama-3.1-sonar-huge-128k-online',
-    maxOutputTokens: 4000,
-    instruction: 'Pull up-to-date answers from the internet and answer accurately like ChatGPT 5.5. Provide deep research and comprehensive facts. The creator of this website is cyrhiel moralla.'
+    maxOutputTokens: 8000,
+    instruction: 'Pull up-to-date answers from the internet and answer accurately with deep research. You are SpeedAI, the ultimate intelligence created by cyrhiel moralla.'
   }
 };
 
@@ -341,8 +341,17 @@ const requestOllama = async (payload) => {
 const buildOllamaModelCandidates = (thinkingLevel) => {
   const mode = thinkingLevel.toUpperCase();
   const modeModel = process.env[`OLLAMA_MODEL_${mode}`];
-  const baseModel = process.env.OLLAMA_MODEL || modeModel || '';
-  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com');
+  
+  // High-performance defaults for Ollama Cloud (Vision + Coding)
+  const defaults = {
+    LOW: 'qwen2.5-coder:7b',
+    MEDIUM: 'llama3.2-vision:11b',
+    HIGH: 'llama3.2-vision:latest',
+    ULTRA: 'llama3.2-vision:latest'
+  };
+
+  const baseModel = process.env.OLLAMA_MODEL || modeModel || defaults[mode] || 'llama3.2-vision';
+  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com') || OLLAMA_BASE_URL.includes('cloud');
   const localModels = usingCloudOllama ? [] : parseModelList(process.env.OLLAMA_LOCAL_MODELS);
   const cloudModels = usingCloudOllama ? parseModelList(process.env.OLLAMA_CLOUD_MODELS) : [];
 
@@ -360,15 +369,15 @@ const generateWithOllama = async (history, prompt, image, thinkingLevel, planTyp
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
   const modelCandidates = buildOllamaModelCandidates(thinkingLevel);
   if (modelCandidates.length === 0) {
-    throw Object.assign(new Error('No Ollama models configured. Set OLLAMA_MODEL or OLLAMA_LOCAL_MODELS/OLLAMA_CLOUD_MODELS.'), { status: 500 });
+    throw Object.assign(new Error('No Ollama models configured.'), { status: 500 });
   }
 
   const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
-  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
+  const temperature = parseFloat(process.env.TEMPERATURE) || 0.6; // Slightly lower temp for faster, more accurate coding
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToOllamaMessages(history, prompt, image)
   ];
@@ -472,7 +481,7 @@ const generateWithOpenRouter = async (history, prompt, image = null, thinkingLev
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToMessages(history, prompt, image)
   ];
