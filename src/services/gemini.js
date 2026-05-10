@@ -1,14 +1,15 @@
 const logger = require('../utils/logger');
 
 const OPENROUTER_API_URL = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const OLLAMA_CHAT_PATH = process.env.OLLAMA_CHAT_PATH || '/api/chat';
-const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '489897d07d8442ea9fecf0e8ce7fb657.sahF7RyGff8biXCRPKlt6E9a';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '';
 
 const THINKING_MODE = {
   low: {
     ollamaModel: 'gemma2:27b',
-    openRouterModel: 'google/gemma-2-27b-it',
+    openRouterModel: 'google/gemma-2-9b-it:free',
     maxOutputTokens: 2000,
     instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
@@ -20,13 +21,13 @@ const THINKING_MODE = {
   },
   high: {
     ollamaModel: 'llama3.2-vision:latest',
-    openRouterModel: 'meta-llama/llama-3.2-90b-vision-instruct',
+    openRouterModel: 'meta-llama/llama-3.3-70b-instruct',
     maxOutputTokens: 4000,
     instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   ultra: {
     ollamaModel: 'llama3.2-vision:latest',
-    openRouterModel: 'perplexity/llama-3-sonar-large-32k-online',
+    openRouterModel: 'perplexity/sonar',
     maxOutputTokens: 8000,
     instruction: 'Pull up-to-date answers from the internet. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   }
@@ -134,7 +135,7 @@ const sanitizeAssistantResponse = (text) => {
 };
 
 const requestOpenRouter = async (payload) => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set.');
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -157,7 +158,8 @@ const requestOpenRouter = async (payload) => {
 const requestOllama = async (payload) => {
   const headers = { 'Content-Type': 'application/json' };
   if (OLLAMA_BASE_URL.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
-  if (OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+  const apiKey = process.env.OLLAMA_API_KEY || OLLAMA_API_KEY;
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
   try {
     const response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
@@ -218,7 +220,15 @@ const generateWithOpenRouter = async (history, prompt, image, thinkingLevel, pla
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
   // Use Ollama for low mode if enabled, otherwise use OpenRouter for everything
   if (thinkingLevel === 'low' && isOllamaEnabled()) {
-    return await generateWithOllama(history, prompt, image, thinkingLevel, planType);
+    try {
+      return await generateWithOllama(history, prompt, image, thinkingLevel, planType);
+    } catch (err) {
+      if (err.status === 503) {
+          logger.warn('Ollama unavailable, falling back to OpenRouter');
+          return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
+      }
+      throw err;
+    }
   }
   return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
 };
