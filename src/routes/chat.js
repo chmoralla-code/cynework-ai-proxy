@@ -79,20 +79,20 @@ const getChatErrorResponse = (error) => {
   }
   if (error?.status === 404) {
     const provider = quotaErrorMessage.includes('ollama') ? 'Ollama' : 'OpenRouter';
-    return { status: 502, body: { error: `Model Unavailable: The configured ${provider} model could not be found. Please ensure it is pulled/active.` } };
+    return { status: 502, body: { error: `Model Unavailable (${provider}): ${message}` } };
   }
   if (error?.status === 401) {
     return {
       status: 502,
       body: {
         error: prefersOllama
-          ? 'Ollama authentication failed. Check OLLAMA_API_KEY.'
-          : 'Provider authentication failed. Check API credentials.'
+          ? `Ollama auth failed (${message})`
+          : `Provider auth failed (${message})`
       }
     };
   }
-  if (error?.status) return { status: error.status, body: { error: message || 'Request failed.' } };
-  return { status: 500, body: { error: 'An error occurred while communicating with the AI model.' } };
+  if (error?.status) return { status: error.status, body: { error: `[${error.status}] ${message}` } };
+  return { status: 500, body: { error: `An error occurred while communicating with the AI model: ${message}` } };
 };
 
 router.get('/public-config', (req, res) => {
