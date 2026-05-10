@@ -116,6 +116,65 @@ const botAvatarSvg = `
 </div>
 `;
 
+// Clipboard image paste support
+messageInput.addEventListener('paste', (e) => {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        currentImage = { data: evt.target.result.split(',')[1], mimeType: item.type };
+        imagePreview.src = evt.target.result;
+        imagePreviewContainer.style.display = 'inline-block';
+        updateUIState();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+});
+
+// Artifact and Code Download Helper
+const downloadFile = (filename, content) => {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const extractArtifacts = (text) => {
+  const artifacts = [];
+  const lines = text.split('\n');
+  let currentFile = null;
+  let currentContent = [];
+  let isCollecting = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('FILE:')) {
+      currentFile = line.replace('FILE:', '').trim();
+      isCollecting = false;
+      currentContent = [];
+    } else if (line.startsWith('```') && currentFile) {
+      if (!isCollecting) {
+        isCollecting = true;
+      } else {
+        isCollecting = false;
+        artifacts.push({ filename: currentFile, content: currentContent.join('\n') });
+        currentFile = null;
+      }
+    } else if (isCollecting) {
+      currentContent.push(lines[i]);
+    }
+  }
+  return artifacts;
+};
+
 const appendMessage = (role, text, image = null) => {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
@@ -141,6 +200,40 @@ const appendMessage = (role, text, image = null) => {
     const textSpan = document.createElement('span');
     textSpan.textContent = text;
     contentDiv.appendChild(textSpan);
+    
+    // Check for artifacts in AI responses
+    if (role === 'model') {
+      const artifacts = extractArtifacts(text);
+      if (artifacts.length > 0) {
+        const downloadContainer = document.createElement('div');
+        downloadContainer.style.marginTop = '12px';
+        downloadContainer.style.display = 'flex';
+        downloadContainer.style.gap = '8px';
+        downloadContainer.style.flexWrap = 'wrap';
+
+        artifacts.forEach(art => {
+          const btn = document.createElement('button');
+          btn.className = 'ghost-btn';
+          btn.style.fontSize = '11px';
+          btn.innerHTML = `💾 Download ${art.filename}`;
+          btn.onclick = () => downloadFile(art.filename, art.content);
+          downloadContainer.appendChild(btn);
+        });
+
+        const downloadAllBtn = document.createElement('button');
+        downloadAllBtn.className = 'nav-btn-primary';
+        downloadAllBtn.style.padding = '4px 10px';
+        downloadAllBtn.style.fontSize = '11px';
+        downloadAllBtn.style.borderRadius = '6px';
+        downloadAllBtn.innerHTML = '📦 Download Project';
+        downloadAllBtn.onclick = () => {
+          artifacts.forEach(art => downloadFile(art.filename, art.content));
+          showToast('Project files downloaded!');
+        };
+        downloadContainer.appendChild(downloadAllBtn);
+        contentDiv.appendChild(downloadContainer);
+      }
+    }
   }
 
   messageDiv.appendChild(contentDiv);

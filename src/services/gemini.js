@@ -1,58 +1,38 @@
 const logger = require('../utils/logger');
 
 const OPENROUTER_API_URL = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODELS_URL = process.env.OPENROUTER_MODELS_URL || 'https://openrouter.ai/api/v1/models';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const OLLAMA_CHAT_PATH = process.env.OLLAMA_CHAT_PATH || '/api/chat';
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '489897d07d8442ea9fecf0e8ce7fb657.sahF7RyGff8biXCRPKlt6E9a';
-const OLLAMA_PROVIDER_PRIORITY = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase();
-
-const freeModelsCache = {
-  expiresAt: 0,
-  models: []
-};
 
 const THINKING_MODE = {
   low: {
-    model: process.env.OPENROUTER_MODEL_LOW || 'google/gemma-2-27b-it',
+    ollamaModel: 'gemma4:31b',
+    openRouterModel: 'google/gemma-2-27b-it',
     maxOutputTokens: 2000,
     instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   medium: {
-    model: process.env.OPENROUTER_MODEL_MEDIUM || 'meta-llama/llama-3.2-11b-vision-instruct',
+    ollamaModel: 'llama3.2-vision:11b',
+    openRouterModel: 'meta-llama/llama-3.2-11b-vision-instruct',
     maxOutputTokens: 3000,
     instruction: 'Provide clear reasoning and guidance. You have vision capabilities. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   high: {
-    model: process.env.OPENROUTER_MODEL_HIGH || 'meta-llama/llama-3.2-90b-vision-instruct',
+    ollamaModel: 'llama3.2-vision:latest',
+    openRouterModel: 'meta-llama/llama-3.2-90b-vision-instruct',
     maxOutputTokens: 4000,
     instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   },
   ultra: {
-    model: process.env.OPENROUTER_MODEL_ULTRA || 'perplexity/llama-3.1-sonar-huge-128k-online',
+    ollamaModel: 'llama3.2-vision:latest',
+    openRouterModel: 'perplexity/llama-3.1-sonar-huge-128k-online',
     maxOutputTokens: 8000,
     instruction: 'Pull up-to-date answers from the internet. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
   }
 };
 
-/**
- * Delays execution for a given number of milliseconds.
- */
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const parseFallbackModels = () => {
-  const raw = process.env.OPENROUTER_FALLBACK_MODELS || '';
-  return raw
-    .split(',')
-    .map(model => model.trim())
-    .filter(Boolean);
-};
-
-const parseModelList = (raw) => (raw || '')
-  .split(',')
-  .map(model => model.trim())
-  .filter(Boolean);
+const CODING_INSTRUCTION = '\n\nWhen writing code for a website or game, ALWAYS provide the filename before each code block using the format "FILE: filename.ext". This allows the user to download the code as local files.';
 
 const parseBoolean = (value, defaultValue = false) => {
   if (value == null || value === '') return defaultValue;
@@ -62,128 +42,7 @@ const parseBoolean = (value, defaultValue = false) => {
   return defaultValue;
 };
 
-const parsePositiveInt = (value, defaultValue) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return defaultValue;
-  return parsed;
-};
-
-const shouldUseAutoFreeFallback = () => parseBoolean(process.env.OPENROUTER_AUTO_FREE_FALLBACK, true);
-const getAutoFreeFallbackLimit = () => parsePositiveInt(process.env.OPENROUTER_MAX_FALLBACK_MODELS, 40);
-const getFreeModelsCacheTtlMs = () => parsePositiveInt(process.env.OPENROUTER_FREE_MODELS_CACHE_SECONDS, 600) * 1000;
 const isOllamaEnabled = () => parseBoolean(process.env.OLLAMA_ENABLED, true);
-const isOpenRouterFallbackEnabled = () => parseBoolean(process.env.OPENROUTER_FALLBACK_ENABLED, true);
-
-const isQuotaError = (error) => {
-  const message = (error?.message || '').toLowerCase();
-  return (
-    error?.status === 429 ||
-    message.includes('resource_exhausted') ||
-    message.includes('quota exceeded') ||
-    message.includes('too many requests')
-  );
-};
-
-const isModelUnavailableError = (error) => {
-  const message = (error?.message || '').toLowerCase();
-  return (
-    error?.status === 404 ||
-    message.includes('model is unavailable') ||
-    message.includes('no endpoints found') ||
-    message.includes('unknown model') ||
-    message.includes('not a valid model id')
-  );
-};
-
-const extractRetryDelayMs = (error) => {
-  if (typeof error?.retryDelayMs === 'number' && Number.isFinite(error.retryDelayMs)) {
-    return Math.max(0, error.retryDelayMs);
-  }
-
-  const retryAfter = error?.retryAfterMs;
-  if (typeof retryAfter === 'number' && Number.isFinite(retryAfter)) {
-    return Math.max(0, retryAfter);
-  }
-
-  return 0;
-};
-
-const parseRetryAfterMs = (retryAfterValue) => {
-  if (!retryAfterValue) return 0;
-  const retryAsNumber = Number.parseFloat(retryAfterValue);
-  if (Number.isFinite(retryAsNumber) && retryAsNumber > 0) {
-    return Math.round(retryAsNumber * 1000);
-  }
-  return 0;
-};
-
-const getOpenRouterHeaders = (apiKey) => ({
-  Authorization: `Bearer ${apiKey}`,
-  'Content-Type': 'application/json',
-  ...(process.env.OPENROUTER_SITE_URL ? { 'HTTP-Referer': process.env.OPENROUTER_SITE_URL } : {}),
-  ...(process.env.OPENROUTER_APP_NAME ? { 'X-Title': process.env.OPENROUTER_APP_NAME } : {})
-});
-
-const getCachedFreeModels = () => {
-  const now = Date.now();
-  if (freeModelsCache.expiresAt > now && freeModelsCache.models.length > 0) {
-    return [...freeModelsCache.models];
-  }
-  return null;
-};
-
-const fetchOpenRouterFreeModels = async (apiKey) => {
-  const cached = getCachedFreeModels();
-  if (cached) return cached;
-
-  const response = await fetch(OPENROUTER_MODELS_URL, {
-    method: 'GET',
-    headers: getOpenRouterHeaders(apiKey)
-  });
-
-  if (!response.ok) {
-    throw await createOpenRouterError(response);
-  }
-
-  const data = await response.json();
-  const freeModels = Array.isArray(data?.data)
-    ? data.data
-      .map((entry) => entry?.id)
-      .filter((id) => typeof id === 'string' && id.endsWith(':free'))
-    : [];
-
-  freeModelsCache.models = freeModels;
-  freeModelsCache.expiresAt = Date.now() + getFreeModelsCacheTtlMs();
-
-  return [...freeModels];
-};
-
-const buildModelCandidates = async (apiKey, primaryModel) => {
-  const manualFallbacks = parseFallbackModels();
-  const candidates = [primaryModel, ...manualFallbacks];
-
-  if (shouldUseAutoFreeFallback()) {
-    try {
-      const freeModels = await fetchOpenRouterFreeModels(apiKey);
-      const excluded = new Set(candidates);
-      const maxAutoFallbackModels = getAutoFreeFallbackLimit();
-      let autoAdded = 0;
-      for (const model of freeModels) {
-        if (excluded.has(model)) continue;
-        candidates.push(model);
-        excluded.add(model);
-        autoAdded += 1;
-        if (maxAutoFallbackModels > 0 && autoAdded >= maxAutoFallbackModels) {
-          break;
-        }
-      }
-    } catch (error) {
-      logger.warn(`Failed to load OpenRouter free model list. Using configured fallback only. ${error.message}`);
-    }
-  }
-
-  return candidates.filter((value, index, array) => array.indexOf(value) === index);
-};
 
 const extractTextFromContent = (content) => {
   if (!content) return '';
@@ -268,35 +127,28 @@ const mapHistoryToOllamaMessages = (history, prompt, image) => {
   return messages;
 };
 
-const createOpenRouterError = async (response) => {
-  const responseText = await response.text().catch(() => '');
-  const error = new Error(responseText || `OpenRouter request failed with status ${response.status}.`);
-  error.status = response.status;
-  error.retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));
-  return error;
-};
-
-const createOllamaError = async (response) => {
-  const responseText = await response.text().catch(() => '');
-  const error = new Error(responseText || `Ollama request failed with status ${response.status}.`);
-  error.status = response.status;
-  return error;
+const sanitizeAssistantResponse = (text) => {
+  if (typeof text !== 'string') return '';
+  // Strip trailing JSON artifacts
+  return text.trim().replace(/['"{( ]*[}\]]+\)*\s*$/g, '').trim();
 };
 
 const requestOpenRouter = async (payload) => {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not set on the server.');
-  }
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set.');
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
-    headers: getOpenRouterHeaders(apiKey),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
-    throw await createOpenRouterError(response);
+    const txt = await response.text();
+    throw Object.assign(new Error(txt || `OpenRouter error ${response.status}`), { status: response.status });
   }
 
   return await response.json();
@@ -304,281 +156,71 @@ const requestOpenRouter = async (payload) => {
 
 const requestOllama = async (payload) => {
   const headers = { 'Content-Type': 'application/json' };
-  
-  // Add skip-warning header for ngrok tunnels to prevent interstitial page
-  if (OLLAMA_BASE_URL.toLowerCase().includes('ngrok-free.dev') || OLLAMA_BASE_URL.toLowerCase().includes('ngrok.io')) {
-    headers['ngrok-skip-browser-warning'] = 'true';
-  }
+  if (OLLAMA_BASE_URL.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
+  if (OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
 
-  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com');
-  if (usingCloudOllama && !process.env.OLLAMA_API_KEY) {
-    throw new Error('OLLAMA_API_KEY is not set on the server.');
-  }
-  if (process.env.OLLAMA_API_KEY) {
-    headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
-  }
-
-  let response;
   try {
-    response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
+    const response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload)
     });
+    if (!response.ok) {
+      const txt = await response.text();
+      throw Object.assign(new Error(txt || `Ollama error ${response.status}`), { status: response.status });
+    }
+    return await response.json();
   } catch (error) {
-    const normalized = new Error(`Ollama endpoint unreachable at ${OLLAMA_BASE_URL}.`);
-    normalized.status = 503;
-    normalized.cause = error;
-    throw normalized;
+    if (!error.status) throw Object.assign(new Error(`Ollama unreachable at ${OLLAMA_BASE_URL}`), { status: 503 });
+    throw error;
   }
-
-  if (!response.ok) {
-    throw await createOllamaError(response);
-  }
-
-  return await response.json();
-};
-
-const buildOllamaModelCandidates = (thinkingLevel) => {
-  const mode = thinkingLevel.toUpperCase();
-  const modeModel = process.env[`OLLAMA_MODEL_${mode}`];
-  
-  // High-performance defaults for Ollama Cloud (Vision + Coding)
-  const defaults = {
-    LOW: 'gemma4:31b',
-    MEDIUM: 'llama3.2-vision:11b',
-    HIGH: 'llama3.2-vision:latest',
-    ULTRA: 'llama3.2-vision:latest'
-  };
-
-  const baseModel = process.env.OLLAMA_MODEL || modeModel || defaults[mode] || 'llama3.2-vision';
-  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com') || OLLAMA_BASE_URL.includes('cloud');
-  const localModels = usingCloudOllama ? [] : parseModelList(process.env.OLLAMA_LOCAL_MODELS);
-  const cloudModels = usingCloudOllama ? parseModelList(process.env.OLLAMA_CLOUD_MODELS) : [];
-
-  return [baseModel, modeModel, ...localModels, ...cloudModels]
-    .map(model => (typeof model === 'string' ? model.trim() : ''))
-    .filter(Boolean)
-    .filter((value, index, array) => array.indexOf(value) === index);
-};
-
-const sanitizeAssistantResponse = (text) => {
-  if (typeof text !== 'string') return '';
-  // Strip trailing JSON artifacts like '}] or ]}) or just }]
-  return text.trim().replace(/['"{( ]*[}\]]+\)*\s*$/g, '').trim();
 };
 
 const generateWithOllama = async (history, prompt, image, thinkingLevel, planType) => {
-  if (!isOllamaEnabled()) {
-    throw Object.assign(new Error('Ollama provider is disabled.'), { status: 503 });
-  }
-
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
-  const modelCandidates = buildOllamaModelCandidates(thinkingLevel);
-  if (modelCandidates.length === 0) {
-    throw Object.assign(new Error('No Ollama models configured.'), { status: 500 });
-  }
+  
+  const response = await requestOllama({
+    model: mode.ollamaModel,
+    messages: [
+      { role: 'system', content: `You are SpeedAI. ${mode.instruction}${CODING_INSTRUCTION}` },
+      ...mapHistoryToOllamaMessages(history, prompt, image)
+    ],
+    stream: false,
+    options: { temperature: 0.6, num_predict: mode.maxOutputTokens }
+  });
 
-  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
-  const temperature = parseFloat(process.env.TEMPERATURE) || 0.6; // Slightly lower temp for faster, more accurate coding
-  const messages = [
-    {
-      role: 'system',
-      content: `You are SpeedAI. ${mode.instruction} The current user plan is ${planType}.`
-    },
-    ...mapHistoryToOllamaMessages(history, prompt, image)
-  ];
+  const rawText = (response?.message?.content || '').toString().trim();
+  const assistantText = sanitizeAssistantResponse(rawText);
 
-  let lastError = null;
-  for (let index = 0; index < modelCandidates.length; index += 1) {
-    const model = modelCandidates[index];
-    const hasNextModel = index < modelCandidates.length - 1;
-
-    try {
-      const retriesForModel = hasNextModel ? 1 : 2;
-      const response = await withRetries(
-        async () => requestOllama({
-          model,
-          messages,
-          stream: false,
-          options: {
-            temperature,
-            num_predict: maxTokens
-          }
-        }),
-        retriesForModel,
-        800,
-        (error) => {
-          if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error) || error?.status === 503)) return false;
-          if (error?.status === 401) return false;
-          if (error?.status && error.status >= 400 && error.status < 500) return false;
-          return true;
-        }
-      );
-
-      const rawAssistantText = (response?.message?.content || '').toString().trim();
-      if (!rawAssistantText) throw new Error('Ollama returned an empty response.');
-
-      const assistantText = sanitizeAssistantResponse(rawAssistantText);
-
-      return (async function* streamSingleResponse() {
-        yield { text: assistantText };
-      })();
-    } catch (error) {
-      lastError = error;
-      if (hasNextModel) {
-        logger.warn(`Ollama model ${model} failed. Falling back to ${modelCandidates[index + 1]}.`);
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  throw lastError || new Error('Unable to generate response from Ollama.');
+  return (async function* () { yield { text: assistantText }; })();
 };
 
-/**
- * Executes a function with exponential backoff retries.
- * @param {Function} fn - The async function to execute.
- * @param {number} retries - Maximum number of retries.
- * @param {number} baseDelayMs - Base delay in milliseconds.
- */
-const withRetries = async (fn, retries = 3, baseDelayMs = 1000, shouldRetry = () => true) => {
-  let attempt = 0;
-  while (attempt < retries) {
-    try {
-      return await fn();
-    } catch (error) {
-      attempt++;
-      logger.warn(`OpenRouter API call failed (Attempt ${attempt}/${retries}): ${error.message}`);
-      
-      if (!shouldRetry(error)) {
-        logger.error('OpenRouter error is non-retriable for this attempt', error);
-        throw error;
-      }
-
-      if (attempt >= retries) {
-        logger.error('Max retries reached for OpenRouter API');
-        throw error;
-      }
-      
-      const backoffDelay = baseDelayMs * Math.pow(2, attempt - 1);
-      const providerDelay = extractRetryDelayMs(error);
-      const retryDelay = Math.max(backoffDelay, providerDelay);
-      logger.info(`Waiting ${retryDelay}ms before retry...`);
-      await delay(retryDelay);
-    }
-  }
-};
-
-/**
- * Calls OpenRouter with history.
- * @param {Array} history - The chat history [{role, parts: [{text}]}]
- * @param {string} prompt - The new user prompt
- * @returns {AsyncGenerator} An async generator yielding chunks of the response
- */
-const generateWithOpenRouter = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not set on the server.');
-  }
-
+const generateWithOpenRouter = async (history, prompt, image, thinkingLevel, planType) => {
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
-  const modelCandidates = await buildModelCandidates(apiKey, mode.model);
-  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
-  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
-  const messages = [
-    {
-      role: 'system',
-      content: `You are SpeedAI. ${mode.instruction} The current user plan is ${planType}.`
-    },
-    ...mapHistoryToMessages(history, prompt, image)
-  ];
+  
+  const response = await requestOpenRouter({
+    model: mode.openRouterModel,
+    messages: [
+      { role: 'system', content: `You are SpeedAI. ${mode.instruction}${CODING_INSTRUCTION}` },
+      ...mapHistoryToMessages(history, prompt, image)
+    ],
+    temperature: 0.7,
+    max_tokens: mode.maxOutputTokens,
+    stream: false
+  });
 
-  let lastError = null;
-  for (let index = 0; index < modelCandidates.length; index += 1) {
-    const model = modelCandidates[index];
-    const hasNextModel = index < modelCandidates.length - 1;
+  const rawText = extractTextFromContent(response?.choices?.[0]?.message?.content);
+  const assistantText = sanitizeAssistantResponse(rawText);
 
-    try {
-      const retriesForModel = hasNextModel ? 1 : 3;
-      const response = await withRetries(
-        async () => {
-          return await requestOpenRouter({
-            model,
-            messages,
-            temperature,
-            max_tokens: maxTokens,
-            stream: false
-          });
-        },
-        retriesForModel,
-        1000,
-        (error) => {
-          // If there is another model to try, fail fast on quota/model errors and switch immediately.
-          if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error))) {
-            return false;
-          }
-          // Never retry auth failures.
-          if (error?.status === 401) return false;
-          // Retry transient errors and rate limits when this is the last model.
-          if (error?.status === 429) return true;
-          if (error?.status && error.status >= 400 && error.status < 500) return false;
-          return true;
-        }
-      );
-
-      const rawAssistantText = extractTextFromContent(response?.choices?.[0]?.message?.content);
-      if (!rawAssistantText) {
-        throw new Error('OpenRouter returned an empty response.');
-      }
-
-      const assistantText = sanitizeAssistantResponse(rawAssistantText);
-
-      return (async function* streamSingleResponse() {
-        yield { text: assistantText };
-      })();
-    } catch (error) {
-      lastError = error;
-      if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error))) {
-        logger.warn(`Model ${model} failed. Falling back to ${modelCandidates[index + 1]}.`);
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  throw lastError || new Error('Unable to generate response from OpenRouter.');
+  return (async function* () { yield { text: assistantText }; })();
 };
 
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
-  // Hybrid Strategy Based on Thinking Level
-  const providers = (() => {
-    if (thinkingLevel === 'low') {
-      // Fast local mode: Try local Ollama via ngrok first, fallback to OpenRouter
-      return isOpenRouterFallbackEnabled() ? ['ollama', 'openrouter'] : ['ollama'];
-    } else {
-      // Deep Analysis / Image mode: Try OpenRouter (Cloud) first, fallback to local Ollama
-      return ['openrouter', 'ollama'];
-    }
-  })();
-
-  let lastError = null;
-  for (const provider of providers) {
-    try {
-      if (provider === 'ollama') {
-        return await generateWithOllama(history, prompt, image, thinkingLevel, planType);
-      }
-      if (provider === 'openrouter') {
-        return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
-      }
-    } catch (error) {
-      lastError = error;
-      logger.warn(`Provider ${provider} failed. Trying next provider if available. ${error.message}`);
-    }
+  // Use Ollama for low mode if enabled, otherwise use OpenRouter for everything
+  if (thinkingLevel === 'low' && isOllamaEnabled()) {
+    return await generateWithOllama(history, prompt, image, thinkingLevel, planType);
   }
-
-  throw lastError || new Error('No available AI provider succeeded.');
+  return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
 };
 
 module.exports = {
