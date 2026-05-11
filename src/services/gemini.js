@@ -30,9 +30,9 @@ const THINKING_MODE = {
 };
 
 const OLLAMA_RECOMMENDED_MODELS = {
-  low: ['qwen2.5:7b', 'llama3.2:3b'],
-  medium: ['llama3.2-vision:11b', 'llava:7b', 'qwen2.5-vl:7b'],
-  high: ['qwen2.5-coder:14b', 'llama3.1:8b', 'qwen2.5:14b']
+  low: ['qwen2.5:7b', 'llama3.2:3b', 'gemma2:9b'],
+  medium: ['llama3.3:70b', 'qwen2.5:32b', 'llama3.2-vision:11b', 'llava:7b'],
+  high: ['qwen2.5-coder:32b', 'llama3.3:70b', 'deepseek-coder-v2:236b']
 };
 
 const OPENROUTER_RECOMMENDED_MODELS = {
@@ -163,9 +163,8 @@ const buildGroqModelCandidates = (thinkingLevel, mode, needs) => {
 };
 
 const buildProviderOrder = (needs) => {
-  if (needs.needsVision) return ['ollama', 'openrouter'];
-  if (needs.needsCoding) return ['groq', 'openrouter', 'ollama'];
-  return ['ollama', 'groq', 'openrouter'];
+  // Always prioritize Ollama best cloud models first
+  return ['ollama', 'openrouter', 'groq'];
 };
 
 const extractTextFromContent = (content) => {
