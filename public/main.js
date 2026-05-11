@@ -116,6 +116,40 @@ const botAvatarSvg = `
 </div>
 `;
 
+const inferMimeTypeFromBase64 = (base64) => {
+  const signature = String(base64 || '').slice(0, 16);
+  if (signature.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (signature.startsWith('/9j/')) return 'image/jpeg';
+  if (signature.startsWith('R0lGOD')) return 'image/gif';
+  if (signature.startsWith('UklGR')) return 'image/webp';
+  if (signature.startsWith('Qk')) return 'image/bmp';
+  return null;
+};
+
+const buildImagePayload = (rawDataUrl, fallbackMimeType = '') => {
+  const source = String(rawDataUrl || '');
+  const dataUrlMatch = source.match(/^data:([^;]+);base64,(.+)$/i);
+  const base64 = dataUrlMatch ? dataUrlMatch[2] : source;
+
+  let mimeType = String(fallbackMimeType || '').trim().toLowerCase();
+  if (!mimeType || mimeType === 'image') {
+    mimeType = dataUrlMatch?.[1]?.toLowerCase?.() || '';
+  }
+  if (!mimeType.startsWith('image/')) {
+    const inferred = inferMimeTypeFromBase64(base64);
+    if (inferred) mimeType = inferred;
+  }
+  if (!mimeType.startsWith('image/')) return null;
+
+  return { data: base64, mimeType };
+};
+
+const isImageLikeFile = (file) => {
+  if (!file) return false;
+  if (typeof file.type === 'string' && file.type.startsWith('image/')) return true;
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(file.name || ''));
+};
+
 // Clipboard image paste support
 messageInput.addEventListener('paste', (e) => {
   const items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -124,7 +158,12 @@ messageInput.addEventListener('paste', (e) => {
       const file = item.getAsFile();
       const reader = new FileReader();
       reader.onload = (evt) => {
-        currentImage = { data: evt.target.result.split(',')[1], mimeType: item.type };
+        const payload = buildImagePayload(evt.target.result, item.type);
+        if (!payload) {
+          showToast('Pasted image could not be processed. Try PNG or JPEG.', 'error');
+          return;
+        }
+        currentImage = payload;
         imagePreview.src = evt.target.result;
         imagePreviewContainer.style.display = 'inline-block';
         updateUIState();
@@ -381,13 +420,18 @@ attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    alert('Please upload a valid image.');
+  if (!isImageLikeFile(file)) {
+    showToast('Please upload a valid image.', 'error');
     return;
   }
   const reader = new FileReader();
   reader.onload = (evt) => {
-    currentImage = { data: evt.target.result.split(',')[1], mimeType: file.type };
+    const payload = buildImagePayload(evt.target.result, file.type);
+    if (!payload) {
+      showToast('Image format is not supported. Use PNG, JPG, WEBP, GIF, or BMP.', 'error');
+      return;
+    }
+    currentImage = payload;
     imagePreview.src = evt.target.result;
     imagePreviewContainer.style.display = 'inline-block';
     updateUIState();
@@ -557,6 +601,40 @@ const playCompletionSound = () => {
     console.warn('Audio feedback failed', e);
   }
 };
+
+// Welcome Voice Over and Music
+let welcomeAudioStarted = false;
+const startWelcomeVoiceOver = () => {
+  if (welcomeAudioStarted) return;
+  welcomeAudioStarted = true;
+
+  // Background Music
+  const bgMusic = new Audio('https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3');
+  bgMusic.volume = 0.1;
+  bgMusic.loop = true;
+  bgMusic.play().catch(e => console.warn('Background music failed to play:', e));
+
+  // Voice Over using Web Speech API
+  const speak = () => {
+    const msg = new SpeechSynthesisUtterance("Welcome to SpeedAI. Register and verify your email for unlimited low-thinking chat");
+    const voices = window.speechSynthesis.getVoices();
+    // Try to find a clear English voice
+    const selectedVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('English (United States)')) || voices[0];
+    if (selectedVoice) msg.voice = selectedVoice;
+    msg.rate = 0.9;
+    msg.pitch = 1;
+    window.speechSynthesis.speak(msg);
+  };
+
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', speak, { once: true });
+  } else {
+    speak();
+  }
+};
+
+// Trigger on first click
+document.addEventListener('click', startWelcomeVoiceOver, { once: true });
 
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();

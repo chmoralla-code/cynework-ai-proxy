@@ -32,14 +32,26 @@ A secure, highly-available Node.js + Express backend proxy with a minimal fronte
 3. Update `.env`:
    ```env
 OPENROUTER_API_KEY=your_actual_openrouter_key_here
-AI_PROVIDER=ollama-only
+AI_PROVIDER=auto
 OLLAMA_ENABLED=true
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5:3b
-OLLAMA_LOCAL_MODELS=qwen2.5:3b,llama3.2:3b
-OLLAMA_CLOUD_MODELS=
-OPENROUTER_FALLBACK_ENABLED=false
-OPENROUTER_MODEL=openrouter/free
+OLLAMA_BASE_URL=https://ollama.com/api
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_MODEL_LOW=qwen2.5:7b
+OLLAMA_MODEL_MEDIUM=llama3.2-vision:11b
+OLLAMA_MODEL_HIGH=llama3.1:8b
+OLLAMA_LOCAL_MODELS=qwen2.5:7b,llama3.2:3b,llama3.1:8b
+OLLAMA_CLOUD_MODELS=qwen2.5:7b,llama3.1:8b,llama3.2-vision:11b,llava:7b
+GROQ_ENABLED=true
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL_LOW=llama-3.1-8b-instant
+GROQ_MODEL_MEDIUM=llama-3.3-70b-versatile
+GROQ_MODEL_HIGH=llama-3.3-70b-versatile
+GROQ_FALLBACK_MODELS=llama-3.3-70b-versatile,qwen-qwq-32b,deepseek-r1-distill-llama-70b
+OPENROUTER_FALLBACK_ENABLED=true
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+OPENROUTER_MODEL_LOW=openai/gpt-oss-20b:free
+OPENROUTER_MODEL_MEDIUM=qwen/qwen3-coder:free
+OPENROUTER_MODEL_HIGH=google/gemma-4-31b-it:free
 OPENROUTER_FALLBACK_MODELS=openai/gpt-oss-20b:free,qwen/qwen3-coder:free,google/gemma-4-31b-it:free,nvidia/nemotron-3-nano-30b-a3b:free
 OPENROUTER_AUTO_FREE_FALLBACK=true
 OPENROUTER_MAX_FALLBACK_MODELS=40
@@ -61,6 +73,11 @@ GCASH_ACCOUNT_NAME=henry s.
    Navigate to `http://localhost:3000` to interact with the chat interface.
 
 When `OPENROUTER_AUTO_FREE_FALLBACK=true`, the server auto-loads currently available `:free` models from OpenRouter and appends them as fallback candidates (cached by `OPENROUTER_FREE_MODELS_CACHE_SECONDS`).
+
+Default routing automatically prioritizes providers by request type:
+- Image prompts: Ollama vision -> OpenRouter vision -> Groq
+- Coding prompts: Groq coding -> OpenRouter coding -> Ollama
+- General prompts: Ollama -> Groq -> OpenRouter  
 
 Use `AI_PROVIDER=ollama-only` to keep provider routing permanently on Ollama and disable OpenRouter fallback.  
 For cloud deployment (Vercel) using Ollama from your computer, expose your local Ollama endpoint with a secure tunnel and set that public URL as `OLLAMA_BASE_URL`.

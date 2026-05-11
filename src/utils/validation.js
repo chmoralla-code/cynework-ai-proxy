@@ -58,18 +58,42 @@ const validateImage = (image) => {
     throw new Error('Image must be an object');
   }
 
-  const { data, mimeType } = image;
+  let { data, mimeType } = image;
 
   if (typeof data !== 'string' || typeof mimeType !== 'string') {
     throw new Error('Image must contain data (base64 string) and mimeType (string)');
   }
 
-  if (!mimeType.startsWith('image/')) {
+  const dataUrlMatch = data.match(/^data:([^;]+);base64,(.+)$/i);
+  if (dataUrlMatch) {
+    if (!mimeType || mimeType === 'image') mimeType = dataUrlMatch[1];
+    data = dataUrlMatch[2];
+  }
+
+  const normalizedMimeType = String(mimeType || '').trim().toLowerCase();
+
+  const inferMimeTypeFromBase64 = (base64) => {
+    const signature = String(base64 || '').slice(0, 16);
+    if (signature.startsWith('iVBORw0KGgo')) return 'image/png';
+    if (signature.startsWith('/9j/')) return 'image/jpeg';
+    if (signature.startsWith('R0lGOD')) return 'image/gif';
+    if (signature.startsWith('UklGR')) return 'image/webp';
+    if (signature.startsWith('Qk')) return 'image/bmp';
+    return null;
+  };
+
+  let safeMimeType = normalizedMimeType;
+  if (safeMimeType === 'image' || !safeMimeType.startsWith('image/')) {
+    const inferred = inferMimeTypeFromBase64(data);
+    if (inferred) safeMimeType = inferred;
+  }
+
+  if (!safeMimeType.startsWith('image/')) {
     throw new Error('Invalid mimeType. Must be an image.');
   }
 
   // Basic base64 validation (rough check)
-  if (!/^[A-Za-z0-9+/=]+$/.test(data)) {
+  if (!/^[A-Za-z0-9+/_=-]+$/.test(data)) {
     throw new Error('Invalid image data format. Must be base64.');
   }
 
@@ -78,7 +102,7 @@ const validateImage = (image) => {
       throw new Error('Image size exceeds 5MB limit.');
   }
 
-  return { data, mimeType };
+  return { data, mimeType: safeMimeType };
 };
 
 const validateThinkingLevel = (thinkingLevel) => {

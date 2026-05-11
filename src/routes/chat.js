@@ -48,6 +48,9 @@ const getChatErrorResponse = (error) => {
   if (message.includes('Validation') || message.includes('Message must') || message.includes('Invalid session') || message.includes('cannot be empty') || message.includes('exceeds maximum')) {
     return { status: 400, body: { error: message } };
   }
+  if (message.includes('Invalid mimeType. Must be an image.')) {
+    return { status: 400, body: { error: 'Unsupported image format. Please upload PNG, JPG, WEBP, GIF, or BMP.' } };
+  }
   if (message.includes('OPENROUTER_API_KEY is not set')) {
     return { status: 500, body: { error: 'Server is missing OPENROUTER_API_KEY configuration.' } };
   }
@@ -61,6 +64,13 @@ const getChatErrorResponse = (error) => {
     return { status: 503, body: { error: 'Ollama endpoint is unreachable. Check OLLAMA_BASE_URL and ensure your computer endpoint is publicly reachable.' } };
   }
   const quotaErrorMessage = message.toLowerCase();
+  const isModelUnavailable =
+    error?.status === 404 ||
+    quotaErrorMessage.includes('model unavailable') ||
+    quotaErrorMessage.includes('could not be found') ||
+    quotaErrorMessage.includes('unknown model') ||
+    quotaErrorMessage.includes('not a valid model');
+
   const isQuotaError =
     error?.status === 429 ||
     quotaErrorMessage.includes('resource_exhausted') ||
@@ -77,9 +87,30 @@ const getChatErrorResponse = (error) => {
       }
     };
   }
-  if (error?.status === 404) {
-    const provider = quotaErrorMessage.includes('ollama') ? 'Ollama' : 'OpenRouter';
-    return { status: 502, body: { error: `Model Unavailable (${provider}): ${message}` } };
+  if (isModelUnavailable) {
+    if (quotaErrorMessage.includes('ollama')) {
+      return {
+        status: 502,
+        body: {
+          error: 'Model Unavailable: The configured Ollama model could not be found. Update OLLAMA_MODEL_* or OLLAMA_CLOUD_MODELS and ensure the model is pulled/active.'
+        }
+      };
+    }
+
+    return {
+      status: 502,
+      body: {
+        error: 'Model Unavailable: The configured OpenRouter model could not be found. Switch OPENROUTER_MODEL_* or enable Ollama cloud fallback using OLLAMA_ENABLED=true with OLLAMA_CLOUD_MODELS.'
+      }
+    };
+  }
+  if (quotaErrorMessage.includes('content must be a string')) {
+    return {
+      status: 502,
+      body: {
+        error: 'The selected fallback model does not support image input. The service will now prioritize vision-capable models automatically.'
+      }
+    };
   }
   if (error?.status === 401) {
     return {
