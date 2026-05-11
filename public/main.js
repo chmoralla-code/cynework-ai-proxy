@@ -579,24 +579,31 @@ trackPaymentBtn.addEventListener('click', async () => {
 });
 
 // Audio notification for message completion
+let globalAudioContext = null;
 const playCompletionSound = () => {
   try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    if (!globalAudioContext) {
+      globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (globalAudioContext.state === 'suspended') {
+      globalAudioContext.resume();
+    }
+    
+    const oscillator = globalAudioContext.createOscillator();
+    const gainNode = globalAudioContext.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-    oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(880, globalAudioContext.currentTime); // A5 note
+    oscillator.frequency.exponentialRampToValueAtTime(440, globalAudioContext.currentTime + 0.1);
     
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.1, globalAudioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, globalAudioContext.currentTime + 0.1);
 
     oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(globalAudioContext.destination);
 
     oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.1);
+    oscillator.stop(globalAudioContext.currentTime + 0.1);
   } catch (e) {
     console.warn('Audio feedback failed', e);
   }
@@ -604,37 +611,43 @@ const playCompletionSound = () => {
 
 // Welcome Voice Over and Music
 let welcomeAudioStarted = false;
-const startWelcomeVoiceOver = () => {
+const startWelcomeAudio = () => {
   if (welcomeAudioStarted) return;
   welcomeAudioStarted = true;
+
+  // Ensure AudioContext is initialized/resumed on first gesture
+  if (!globalAudioContext) {
+    globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (globalAudioContext.state === 'suspended') {
+    globalAudioContext.resume();
+  }
 
   // Background Music
   const bgMusic = new Audio('https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3');
   bgMusic.volume = 0.1;
   bgMusic.loop = true;
-  bgMusic.play().catch(e => console.warn('Background music failed to play:', e));
+  // Use a slight delay to ensure the browser registers the gesture for multiple audio sources
+  setTimeout(() => {
+    bgMusic.play().catch(e => console.warn('Background music failed to play:', e));
+  }, 50);
 
   // Voice Over using Web Speech API
-  const speak = () => {
-    const msg = new SpeechSynthesisUtterance("Welcome to SpeedAI. Register and verify your email for unlimited low-thinking chat");
-    const voices = window.speechSynthesis.getVoices();
-    // Try to find a clear English voice
-    const selectedVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('English (United States)')) || voices[0];
-    if (selectedVoice) msg.voice = selectedVoice;
-    msg.rate = 0.9;
-    msg.pitch = 1;
-    window.speechSynthesis.speak(msg);
-  };
-
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.addEventListener('voiceschanged', speak, { once: true });
-  } else {
-    speak();
-  }
+  // On mobile, we MUST call speak() directly in the event handler to preserve the gesture
+  const msg = new SpeechSynthesisUtterance("Welcome to SpeedAI. Register and verify your email for unlimited low-thinking chat");
+  const voices = window.speechSynthesis.getVoices();
+  // Try to find a clear English voice
+  const selectedVoice = voices.find(v => (v.name.includes('Google') || v.name.includes('English')) && v.lang.startsWith('en')) || voices[0];
+  if (selectedVoice) msg.voice = selectedVoice;
+  msg.rate = 0.9;
+  msg.pitch = 1;
+  window.speechSynthesis.speak(msg);
 };
 
-// Trigger on first click
-document.addEventListener('click', startWelcomeVoiceOver, { once: true });
+// Trigger on first user interaction (click or touch)
+['click', 'touchstart', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, startWelcomeAudio, { once: true });
+});
 
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
