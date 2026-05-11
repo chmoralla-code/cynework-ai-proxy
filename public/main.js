@@ -108,12 +108,8 @@ const normalizeErrorMessage = (value) => {
   return normalized;
 };
 
-const botAvatarSvg = `
-<div class="bot-face">
-  <div class="bot-eye left"></div>
-  <div class="bot-eye right"></div>
-  <div class="bot-mouth"></div>
-</div>
+const botAvatarHtml = `
+<img src="myface.jpg" class="bot-face-img" alt="AI Avatar">
 `;
 
 const inferMimeTypeFromBase64 = (base64) => {
@@ -221,7 +217,7 @@ const appendMessage = (role, text, image = null) => {
   if (role === 'model' || role === 'system') {
     const avatarDiv = document.createElement('div');
     avatarDiv.className = 'avatar';
-    avatarDiv.innerHTML = botAvatarSvg;
+    avatarDiv.innerHTML = botAvatarHtml;
     messageDiv.appendChild(avatarDiv);
   }
 
