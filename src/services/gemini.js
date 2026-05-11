@@ -450,6 +450,8 @@ const generateWithGroq = async (history, prompt, image, thinkingLevel, planType,
   throw lastError || new Error('Unable to generate response from Groq.');
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
   const mode = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase();
   const needs = detectPromptNeeds(prompt, image);
@@ -469,24 +471,40 @@ const generateChatStream = async (history, prompt, image = null, thinkingLevel =
   const errors = [];
 
   for (const provider of providerOrder) {
-    try {
-      if (provider === 'ollama') {
-        if (!isOllamaEnabled()) continue;
-        return await generateWithOllama(history, prompt, image, thinkingLevel, planType, needs);
-      }
+    let attempts = 0;
+    const maxAttempts = 2; // Retry once if rate limited
 
-      if (provider === 'groq') {
-        if (!isGroqEnabled()) continue;
-        return await generateWithGroq(history, prompt, image, thinkingLevel, planType, needs);
-      }
+    while (attempts < maxAttempts) {
+      try {
+        if (provider === 'ollama') {
+          if (!isOllamaEnabled()) break;
+          return await generateWithOllama(history, prompt, image, thinkingLevel, planType, needs);
+        }
 
-      if (provider === 'openrouter') {
-        if (!isOpenRouterEnabled()) continue;
-        return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType, needs);
+        if (provider === 'groq') {
+          if (!isGroqEnabled()) break;
+          return await generateWithGroq(history, prompt, image, thinkingLevel, planType, needs);
+        }
+
+        if (provider === 'openrouter') {
+          if (!isOpenRouterEnabled()) break;
+          return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType, needs);
+        }
+      } catch (error) {
+        attempts += 1;
+        const isRateLimit = error.status === 429 || error.message.toLowerCase().includes('rate limit');
+        
+        if (isRateLimit && attempts < maxAttempts) {
+          const waitTime = attempts * 2000; // 2s, 4s...
+          logger.warn(`${provider} rate limited. Retrying in ${waitTime}ms (Attempt ${attempts}/${maxAttempts})...`);
+          await sleep(waitTime);
+          continue;
+        }
+
+        errors.push({ provider, error });
+        logger.warn(`${provider} failed (${error.message}), trying next provider`);
+        break; // Move to next provider
       }
-    } catch (error) {
-      errors.push({ provider, error });
-      logger.warn(`${provider} failed (${error.message}), trying next provider`);
     }
   }
 
