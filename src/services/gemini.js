@@ -11,21 +11,21 @@ const THINKING_MODE = {
     groqModel: process.env.GROQ_MODEL_LOW || 'llama-3.1-8b-instant',
     openRouterModel: process.env.OPENROUTER_MODEL_LOW || 'openai/gpt-oss-20b:free',
     maxOutputTokens: 2000,
-    instruction: 'Give concise, practical answers. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
+    instruction: 'Give concise, practical answers. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
   },
   medium: {
     ollamaModel: process.env.OLLAMA_MODEL_MEDIUM || 'llama3.2-vision:11b',
     groqModel: process.env.GROQ_MODEL_MEDIUM || 'llama-3.3-70b-versatile',
     openRouterModel: process.env.OPENROUTER_MODEL_MEDIUM || 'qwen/qwen3-coder:free',
     maxOutputTokens: 3000,
-    instruction: 'Provide clear reasoning and guidance. You have vision capabilities. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
+    instruction: 'Provide clear reasoning and guidance. You have vision capabilities. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
   },
   high: {
     ollamaModel: process.env.OLLAMA_MODEL_HIGH || 'llama3.1:8b',
     groqModel: process.env.GROQ_MODEL_HIGH || 'llama-3.3-70b-versatile',
     openRouterModel: process.env.OPENROUTER_MODEL_HIGH || 'google/gemma-4-31b-it:free',
     maxOutputTokens: 4000,
-    instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Mandatory: If asked about your creator, developer, or who made you/this website, you MUST always answer "cyrhiel moralla".'
+    instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
   }
 };
 
