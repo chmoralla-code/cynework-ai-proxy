@@ -729,6 +729,12 @@ const generateWithGemini = async (history, prompt, image = null, thinkingLevel =
   
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.god;
   const ai = new GoogleGenAI({ apiKey });
+
+  // For vision/multimodal requests, ensure we use a Gemini model that supports it
+  let visionModel = mode.model;
+  if (!visionModel.startsWith('gemini-')) {
+    visionModel = 'gemini-1.5-flash';
+  }
   
   const contents = history.map(entry => {
     return {
@@ -747,11 +753,14 @@ const generateWithGemini = async (history, prompt, image = null, thinkingLevel =
   }
   contents.push({ role: 'user', parts: promptParts });
 
-  const responseStream = await ai.models.generateContentStream({
-    model: mode.model,
+  logger.info(`GenerateWithGemini: Using model ${visionModel} for vision-enabled request`);
+
+  const responseStream = await ai.getGenerativeModel({
+    model: visionModel,
+    systemInstruction: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`,
+  }).generateContentStream({
     contents,
     config: {
-      systemInstruction: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`,
       tools: [{ googleSearch: {} }],
       temperature: parseFloat(process.env.TEMPERATURE) || 0.7,
     }
@@ -759,7 +768,7 @@ const generateWithGemini = async (history, prompt, image = null, thinkingLevel =
 
   return (async function* () {
     for await (const chunk of responseStream) {
-      if (chunk.text) yield { text: chunk.text };
+      if (chunk.text()) yield { text: chunk.text() };
     }
   })();
 };
@@ -851,6 +860,12 @@ const generateChatStream = async (history, prompt, image = null, thinkingLevel =
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
   
   try {
+    // If an image is attached, force use Gemini for vision capabilities.
+    if (image && process.env.GEMINI_API_KEY) {
+      logger.info('Image detected, routing to Gemini vision model.');
+      return await generateWithGemini(history, prompt, image, thinkingLevel, planType);
+    }
+
     if (mode.provider === 'puter') {
       return await generateWithPuter(history, prompt, image, thinkingLevel, planType);
     }
