@@ -315,65 +315,59 @@ const saveTokens = (nextAccessToken, nextRefreshToken) => {
   else localStorage.removeItem('auth_refresh_token');
 };
 
-const supabaseAuthFetch = async (path, options = {}) => {
-  const url = `${config.supabase.url}/auth/v1${path}`;
-  const headers = {
-    apikey: config.supabase.publishableKey,
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
-  };
-  const response = await fetch(url, { ...options, headers });
-  const data = await response.json().catch(() => ({}));
-  return { response, data };
-};
-
-const getUserFromAuthApi = async () => {
-  if (!accessToken) return null;
-  const { response, data } = await supabaseAuthFetch('/user', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
-  if (!response.ok) return null;
-  return data;
-};
-
 const refreshAuthState = async () => {
-  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-  const response = await fetch('/chat/auth/me', { headers });
-  const data = await response.json();
-  currentProfile = data;
+  try {
+    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    const response = await fetch('/chat/auth/me', { headers });
+    const data = await response.json();
+    currentProfile = data;
 
-  if (data.authenticated) {
-    statusText.textContent = `${data.user.email} · ${data.planType}`;
-    openLoginBtn.style.display = 'none';
-    openRegisterBtn.style.display = 'none';
-    logoutBtn.style.display = 'inline-flex';
-    adminLinkBtn.style.display = 'inline-flex';
-    usageInfo.textContent = data.planType === 'free' ? 'Registered plan: Unlimited requests' : `Plan: ${data.planType}`;
-  } else {
+    if (data.authenticated) {
+      statusText.textContent = `${data.user.email} · ${data.planType}`;
+      openLoginBtn.style.display = 'none';
+      openRegisterBtn.style.display = 'none';
+      logoutBtn.style.display = 'inline-flex';
+      adminLinkBtn.style.display = 'inline-flex';
+      usageInfo.textContent = data.planType === 'free' ? 'Registered plan: Unlimited requests' : `Plan: ${data.planType}`;
+    } else {
+      statusText.textContent = 'Guest mode';
+      openLoginBtn.style.display = 'inline-flex';
+      openRegisterBtn.style.display = 'inline-flex';
+      logoutBtn.style.display = 'none';
+      adminLinkBtn.style.display = 'none';
+      usageInfo.textContent = 'Guest mode: Unlimited requests';
+    }
+
+    if (!response.ok) {
+      saveTokens(null, null);
+    }
+  } catch (error) {
+    saveTokens(null, null);
+    currentProfile = { authenticated: false, planType: 'guest', limits: null };
     statusText.textContent = 'Guest mode';
     openLoginBtn.style.display = 'inline-flex';
     openRegisterBtn.style.display = 'inline-flex';
     logoutBtn.style.display = 'none';
     adminLinkBtn.style.display = 'none';
     usageInfo.textContent = 'Guest mode: Unlimited requests';
+    console.error('Auth state refresh failed:', error);
   }
 };
 
 const initAuthConfig = async () => {
-  const response = await fetch('/chat/public-config');
-  config = await response.json();
+  try {
+    const response = await fetch('/chat/public-config');
+    config = await response.json();
 
-  if (!config?.supabase?.url || !config?.supabase?.publishableKey) {
-    appendMessage('system', 'Auth is not configured yet. Chat will run in guest mode.');
-    return;
-  }
+    if (!config?.supabase?.url || !config?.supabase?.publishableKey) {
+      appendMessage('system', 'Auth is not configured yet. Chat will run in guest mode.');
+      return;
+    }
 
-  const authUser = await getUserFromAuthApi();
-  if (!authUser) {
-    saveTokens(null, null);
+    await refreshAuthState();
+  } catch (error) {
+    console.error('Auth initialization failed:', error);
   }
-  await refreshAuthState();
 };
 
 const updateUIState = () => {
@@ -451,17 +445,8 @@ toggleAuthModeBtn.addEventListener('click', () => {
 });
 
 logoutBtn.addEventListener('click', async () => {
-  try {
-    if (accessToken && config?.supabase?.url) {
-      await supabaseAuthFetch('/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-    }
-  } finally {
-    saveTokens(null, null);
-    await refreshAuthState();
-  }
+  saveTokens(null, null);
+  await refreshAuthState();
 });
 
 authForm.addEventListener('submit', async (e) => {
@@ -477,28 +462,28 @@ authForm.addEventListener('submit', async (e) => {
   try {
     if (authMode === 'register') {
       const fullName = fullNameInput.value.trim();
-      const { response, data } = await supabaseAuthFetch('/signup', {
+      const response = await fetch('/chat/auth/register', {
         method: 'POST',
-        body: JSON.stringify({
-          email,
-          password,
-          data: { full_name: fullName }
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName })
       });
-      if (!response.ok) throw new Error(data?.msg || data?.error_description || 'Registration failed.');
-      showToast('Registration successful! Please verify your email.', 'success');
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Registration failed.');
+      showToast('Registration successful! You can now log in.', 'success');
       setAuthMode('login');
       closeModal();
       return;
     }
 
-    const { response, data } = await supabaseAuthFetch('/token?grant_type=password', {
+    const response = await fetch('/chat/auth/login', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    if (!response.ok) throw new Error(data?.error_description || 'Login failed.');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || 'Login failed.');
 
-    saveTokens(data.access_token, data.refresh_token);
+    saveTokens(data.session?.access_token, data.session?.refresh_token);
     showToast('Login successful!', 'success');
     closeModal();
     await refreshAuthState();

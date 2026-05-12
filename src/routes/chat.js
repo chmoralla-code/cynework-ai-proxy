@@ -139,6 +139,112 @@ router.get('/public-config', (req, res) => {
   });
 });
 
+router.post('/auth/register', async (req, res) => {
+  try {
+    const supabase = getSupabaseServiceClient();
+    if (!supabase) {
+      throw Object.assign(new Error('Supabase is not configured on the server.'), { status: 500 });
+    }
+
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.password || '';
+    const fullName = (req.body.fullName || '').trim();
+
+    if (!email || !password) {
+      throw Object.assign(new Error('Email and password are required.'), { status: 400 });
+    }
+
+    if (password.length < 6) {
+      throw Object.assign(new Error('Password must be at least 6 characters.'), { status: 400 });
+    }
+
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { full_name: fullName },
+      email_confirm: true
+    });
+
+    if (error) throw error;
+
+    res.status(201).json({
+      message: 'Registration successful! You can now log in.',
+      user: { id: data.user.id, email: data.user.email }
+    });
+  } catch (error) {
+    logger.error('Registration error', error);
+    const message = error.message || 'Registration failed.';
+    const status = error.status || 500;
+    res.status(status).json({ error: message });
+  }
+});
+
+router.post('/auth/login', async (req, res) => {
+  try {
+    const { url, publishableKey } = getSupabasePublicConfig();
+    if (!url || !publishableKey) {
+      throw Object.assign(new Error('Supabase is not configured on the server.'), { status: 500 });
+    }
+
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.password || '';
+
+    if (!email || !password) {
+      throw Object.assign(new Error('Email and password are required.'), { status: 400 });
+    }
+
+    const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        apikey: publishableKey,
+        Authorization: `Bearer ${publishableKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const providerMessage = data?.error_description || data?.msg || data?.error || '';
+      const isInvalidCredentials =
+        response.status === 400 ||
+        response.status === 401 ||
+        response.status === 403 ||
+        /invalid.*(credential|login|password|email)|email or password|login failed/i.test(providerMessage);
+
+      const message = isInvalidCredentials
+        ? 'Incorrect password or email.'
+        : providerMessage || 'Login failed.';
+
+      logger.warn('Login attempt failed', {
+        email,
+        status: response.status,
+        message
+      });
+
+      const error = Object.assign(new Error(message), { status: response.status || 401 });
+      throw error;
+    }
+
+    res.json({
+      message: 'Login successful!',
+      session: {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+        token_type: data.token_type
+      },
+      user: data.user || null
+    });
+  } catch (error) {
+    logger.error('Login error', error);
+    const message = error.message || 'Login failed.';
+    const status = error.status || 500;
+    res.status(status).json({ error: message });
+  }
+});
+
 router.get('/auth/me', async (req, res) => {
   try {
     if (!req.headers.authorization?.startsWith('Bearer ')) {
