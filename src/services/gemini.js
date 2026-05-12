@@ -1,57 +1,83 @@
 const logger = require('../utils/logger');
+const { init } = require('@heyputer/puter.js/src/init.cjs');
+
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const OPENROUTER_API_URL = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
-const GROQ_API_URL = process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+const OPENROUTER_MODELS_URL = process.env.OPENROUTER_MODELS_URL || 'https://openrouter.ai/api/v1/models';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+const LOCAL_OLLAMA_BASE_URL = (process.env.OLLAMA_LOCAL_BASE_URL || OLLAMA_BASE_URL).replace(/\/+$/, '');
 const OLLAMA_CHAT_PATH = process.env.OLLAMA_CHAT_PATH || '/api/chat';
+const OLLAMA_PROVIDER_PRIORITY = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase();
+
+// Initialize Puter
+const puterToken = process.env.PUTER_TOKEN;
+let puter = null;
+if (puterToken) {
+  try {
+    puter = init(puterToken);
+    logger.info('Puter AI initialized successfully');
+  } catch (e) {
+    logger.error('Failed to initialize Puter AI:', e.message);
+  }
+}
+
+const freeModelsCache = {
+  expiresAt: 0,
+  models: []
+};
 
 const THINKING_MODE = {
   low: {
-    ollamaModel: process.env.OLLAMA_MODEL_LOW || 'qwen2.5:7b',
-    groqModel: process.env.GROQ_MODEL_LOW || 'llama-3.1-8b-instant',
-    openRouterModel: process.env.OPENROUTER_MODEL_LOW || 'openai/gpt-oss-20b:free',
-    maxOutputTokens: 2000,
-    instruction: 'Give concise, practical answers. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
+    provider: 'puter',
+    model: process.env.PUTER_MODEL_LOW || 'grok-4.3',
+    maxOutputTokens: 1000,
+    instruction: 'Give concise, practical answers with minimal reasoning steps.'
   },
   medium: {
-    ollamaModel: process.env.OLLAMA_MODEL_MEDIUM || 'llama3.2-vision:11b',
-    groqModel: process.env.GROQ_MODEL_MEDIUM || 'llama-3.3-70b-versatile',
-    openRouterModel: process.env.OPENROUTER_MODEL_MEDIUM || 'qwen/qwen3-coder:free',
-    maxOutputTokens: 3000,
-    instruction: 'Provide clear reasoning and guidance. You have vision capabilities. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
+    provider: 'puter',
+    model: process.env.PUTER_MODEL_MEDIUM || 'grok-4.3',
+    maxOutputTokens: 2000,
+    instruction: 'Provide clear reasoning, examples, and short step-by-step guidance.'
   },
   high: {
-    ollamaModel: process.env.OLLAMA_MODEL_HIGH || 'llama3.1:8b',
-    groqModel: process.env.GROQ_MODEL_HIGH || 'llama-3.3-70b-versatile',
-    openRouterModel: process.env.OPENROUTER_MODEL_HIGH || 'google/gemma-4-31b-it:free',
+    provider: 'puter',
+    model: process.env.PUTER_MODEL_HIGH || 'grok-4.3',
     maxOutputTokens: 4000,
-    instruction: 'Provide deep analysis and recommendations. Use full expertise. You are SpeedAI. Only mention that your creator/developer is "cyrhiel moralla" IF explicitly asked. Do NOT include this information in normal responses.'
+    instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. Analyze images if provided.'
+  },
+  ultra: {
+    provider: 'puter',
+    model: process.env.PUTER_MODEL_ULTRA || 'grok-4.3',
+    maxOutputTokens: 8000,
+    instruction: 'Provide deep research, analysis, and comprehensive facts. Think step-by-step through complex problems. Break down complex problems into logical steps. Specialized for coding and reasoning. Show your work and reasoning process clearly.'
+  },
+  god: {
+    provider: 'puter',
+    model: process.env.PUTER_MODEL_GOD || 'grok-4.3',
+    maxOutputTokens: 16384,
+    instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
   }
 };
 
-const OLLAMA_RECOMMENDED_MODELS = {
-  low: ['qwen2.5:7b', 'llama3.2:3b', 'gemma2:9b'],
-  medium: ['llama3.3:70b', 'qwen2.5:32b', 'llama3.2-vision:11b', 'llava:7b'],
-  high: ['qwen2.5-coder:32b', 'llama3.3:70b', 'deepseek-coder-v2:236b']
+/**
+ * Delays execution for a given number of milliseconds.
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const parseFallbackModels = () => {
+  const raw = process.env.OPENROUTER_FALLBACK_MODELS || '';
+  return raw
+    .split(',')
+    .map(model => model.trim())
+    .filter(Boolean);
 };
 
-const OPENROUTER_RECOMMENDED_MODELS = {
-  low: ['openai/gpt-oss-20b:free', 'google/gemma-4-31b-it:free', 'meta-llama/llama-3.2-11b-vision-instruct'],
-  medium: ['qwen/qwen3-coder:free', 'google/gemma-4-31b-it:free', 'meta-llama/llama-3.2-11b-vision-instruct'],
-  high: ['qwen/qwen3-coder:free', 'google/gemma-4-31b-it:free', 'deepseek/deepseek-chat-v3-0324:free', 'meta-llama/llama-3.2-11b-vision-instruct']
-};
-
-const GROQ_RECOMMENDED_MODELS = {
-  low: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
-  medium: ['llama-3.3-70b-versatile', 'qwen-qwq-32b'],
-  high: ['llama-3.3-70b-versatile', 'deepseek-r1-distill-llama-70b', 'qwen-qwq-32b']
-};
-
-const CODING_INSTRUCTION = '\n\nWhen writing code for a website or game, ALWAYS provide the filename before each code block using the format "FILE: filename.ext". This allows the user to download the code as local files.';
-
-const VISION_MODEL_HINTS = ['vision', 'vl', 'llava', 'moondream', 'gemma-vision', 'pixtral'];
-const CODING_MODEL_HINTS = ['coder', 'code', 'deepseek', 'qwen', 'qwq', 'llama-3.3', 'llama3.1'];
-const CODING_PROMPT_PATTERN = /(code|coding|debug|fix|bug|refactor|function|api|backend|frontend|javascript|typescript|python|node|react|sql|deploy|vercel)/i;
+const parseModelList = (raw) => (raw || '')
+  .split(',')
+  .map(model => model.trim())
+  .filter(Boolean);
 
 const parseBoolean = (value, defaultValue = false) => {
   if (value == null || value === '') return defaultValue;
@@ -61,110 +87,127 @@ const parseBoolean = (value, defaultValue = false) => {
   return defaultValue;
 };
 
-const parseModelList = (value) => String(value || '')
-  .split(',')
-  .map((entry) => entry.trim())
-  .filter(Boolean);
+const parsePositiveInt = (value, defaultValue) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return defaultValue;
+  return parsed;
+};
 
-const uniqueModels = (models) => models.filter((value, index, array) => array.indexOf(value) === index);
-
+const shouldUseAutoFreeFallback = () => parseBoolean(process.env.OPENROUTER_AUTO_FREE_FALLBACK, true);
+const getAutoFreeFallbackLimit = () => parsePositiveInt(process.env.OPENROUTER_MAX_FALLBACK_MODELS, 40);
+const getFreeModelsCacheTtlMs = () => parsePositiveInt(process.env.OPENROUTER_FREE_MODELS_CACHE_SECONDS, 600) * 1000;
 const isOllamaEnabled = () => parseBoolean(process.env.OLLAMA_ENABLED, true);
-const isOpenRouterEnabled = () => parseBoolean(process.env.OPENROUTER_FALLBACK_ENABLED, true);
-const isGroqEnabled = () => parseBoolean(process.env.GROQ_ENABLED, true);
+const isOpenRouterFallbackEnabled = () => parseBoolean(process.env.OPENROUTER_FALLBACK_ENABLED, true);
 
-const detectPromptNeeds = (prompt, image) => ({
-  needsVision: Boolean(image?.data),
-  needsCoding: CODING_PROMPT_PATTERN.test(String(prompt || ''))
-});
-
-const isVisionModel = (model) => {
-  const lower = String(model || '').toLowerCase();
-  return VISION_MODEL_HINTS.some((hint) => lower.includes(hint));
-};
-
-const scoreModelCandidate = (model, needs = {}) => {
-  const lowerModel = String(model || '').toLowerCase();
-  let score = 0;
-
-  if (needs.needsVision) {
-    if (VISION_MODEL_HINTS.some((hint) => lowerModel.includes(hint))) score += 100;
-    else score -= 25;
-  }
-
-  if (needs.needsCoding && CODING_MODEL_HINTS.some((hint) => lowerModel.includes(hint))) {
-    score += 70;
-  }
-
-  if (lowerModel.includes(':free')) score += 8;
-  if (lowerModel.includes('70b') || lowerModel.includes('32b') || lowerModel.includes('31b')) score += 5;
-
-  return score;
-};
-
-const rankCandidates = (candidates, needs = {}) => {
-  const unique = uniqueModels(candidates.filter(Boolean));
-  return unique
-    .map((model, index) => ({ model, index, score: scoreModelCandidate(model, needs) }))
-    .sort((a, b) => (b.score - a.score) || (a.index - b.index))
-    .map((entry) => entry.model);
+const isQuotaError = (error) => {
+  const message = (error?.message || '').toLowerCase();
+  return (
+    error?.status === 429 ||
+    message.includes('resource_exhausted') ||
+    message.includes('quota exceeded') ||
+    message.includes('too many requests')
+  );
 };
 
 const isModelUnavailableError = (error) => {
   const message = (error?.message || '').toLowerCase();
   return (
     error?.status === 404 ||
-    message.includes('model unavailable') ||
-    message.includes('could not be found') ||
+    message.includes('model is unavailable') ||
+    message.includes('no endpoints found') ||
     message.includes('unknown model') ||
-    message.includes('not found') ||
-    message.includes('not a valid model id') ||
-    message.includes('pull')
+    message.includes('not a valid model id')
   );
 };
 
-const buildOllamaModelCandidates = (thinkingLevel, mode, needs) => {
-  const level = (thinkingLevel || 'low').toLowerCase();
-  const envModel = process.env[`OLLAMA_MODEL_${level.toUpperCase()}`];
-  const baseModel = process.env.OLLAMA_MODEL || mode.ollamaModel;
-  const cloudModels = parseModelList(process.env.OLLAMA_CLOUD_MODELS);
-  const localModels = parseModelList(process.env.OLLAMA_LOCAL_MODELS);
-  const manualFallbacks = parseModelList(process.env.OLLAMA_FALLBACK_MODELS);
-  const recommended = OLLAMA_RECOMMENDED_MODELS[level] || [];
+const extractRetryDelayMs = (error) => {
+  if (typeof error?.retryDelayMs === 'number' && Number.isFinite(error.retryDelayMs)) {
+    return Math.max(0, error.retryDelayMs);
+  }
 
-  return rankCandidates([envModel, mode.ollamaModel, baseModel, ...cloudModels, ...localModels, ...manualFallbacks, ...recommended], needs);
+  const retryAfter = error?.retryAfterMs;
+  if (typeof retryAfter === 'number' && Number.isFinite(retryAfter)) {
+    return Math.max(0, retryAfter);
+  }
+
+  return 0;
 };
 
-const buildOpenRouterModelCandidates = (thinkingLevel, mode, needs) => {
-  const level = (thinkingLevel || 'low').toLowerCase();
-  const envModel = process.env[`OPENROUTER_MODEL_${level.toUpperCase()}`];
-  const baseModel = process.env.OPENROUTER_MODEL || mode.openRouterModel;
-  const manualFallbacks = parseModelList(process.env.OPENROUTER_FALLBACK_MODELS);
-  const recommended = OPENROUTER_RECOMMENDED_MODELS[level] || [];
-
-  const ranked = rankCandidates([envModel, mode.openRouterModel, baseModel, ...manualFallbacks, ...recommended], needs);
-  if (!needs?.needsVision) return ranked;
-
-  const visionOnly = ranked.filter((model) => isVisionModel(model));
-  return visionOnly;
+const parseRetryAfterMs = (retryAfterValue) => {
+  if (!retryAfterValue) return 0;
+  const retryAsNumber = Number.parseFloat(retryAfterValue);
+  if (Number.isFinite(retryAsNumber) && retryAsNumber > 0) {
+    return Math.round(retryAsNumber * 1000);
+  }
+  return 0;
 };
 
-const buildGroqModelCandidates = (thinkingLevel, mode, needs) => {
-  const level = (thinkingLevel || 'low').toLowerCase();
-  const envModel = process.env[`GROQ_MODEL_${level.toUpperCase()}`];
-  const baseModel = process.env.GROQ_MODEL || mode.groqModel;
-  const manualFallbacks = parseModelList(process.env.GROQ_FALLBACK_MODELS);
-  const recommended = GROQ_RECOMMENDED_MODELS[level] || [];
+const getOpenRouterHeaders = (apiKey) => ({
+  Authorization: `Bearer ${apiKey}`,
+  'Content-Type': 'application/json',
+  ...(process.env.OPENROUTER_SITE_URL ? { 'HTTP-Referer': process.env.OPENROUTER_SITE_URL } : {}),
+  ...(process.env.OPENROUTER_APP_NAME ? { 'X-Title': process.env.OPENROUTER_APP_NAME } : {})
+});
 
-  const ranked = rankCandidates([envModel, mode.groqModel, baseModel, ...manualFallbacks, ...recommended], needs);
-  if (!needs?.needsVision) return ranked;
-
-  const visionOnly = ranked.filter((model) => isVisionModel(model));
-  return visionOnly;
+const getCachedFreeModels = () => {
+  const now = Date.now();
+  if (freeModelsCache.expiresAt > now && freeModelsCache.models.length > 0) {
+    return [...freeModelsCache.models];
+  }
+  return null;
 };
 
-const buildProviderOrder = (needs) => {
-  // Always prioritize Ollama best cloud models first
-  return ['ollama', 'openrouter', 'groq'];
+const fetchOpenRouterFreeModels = async (apiKey) => {
+  const cached = getCachedFreeModels();
+  if (cached) return cached;
+
+  const response = await fetch(OPENROUTER_MODELS_URL, {
+    method: 'GET',
+    headers: getOpenRouterHeaders(apiKey)
+  });
+
+  if (!response.ok) {
+    throw await createOpenRouterError(response);
+  }
+
+  const data = await response.json();
+  const freeModels = Array.isArray(data?.data)
+    ? data.data
+      .map((entry) => entry?.id)
+      .filter((id) => typeof id === 'string' && id.endsWith(':free'))
+    : [];
+
+  freeModelsCache.models = freeModels;
+  freeModelsCache.expiresAt = Date.now() + getFreeModelsCacheTtlMs();
+
+  return [...freeModels];
+};
+
+const buildModelCandidates = async (apiKey, primaryModel) => {
+  const manualFallbacks = parseFallbackModels();
+  const candidates = [primaryModel, ...manualFallbacks];
+
+  if (shouldUseAutoFreeFallback()) {
+    try {
+      const freeModels = await fetchOpenRouterFreeModels(apiKey);
+      const excluded = new Set(candidates);
+      const maxAutoFallbackModels = getAutoFreeFallbackLimit();
+      let autoAdded = 0;
+      for (const model of freeModels) {
+        if (excluded.has(model)) continue;
+        candidates.push(model);
+        excluded.add(model);
+        autoAdded += 1;
+        if (maxAutoFallbackModels > 0 && autoAdded >= maxAutoFallbackModels) {
+          break;
+        }
+      }
+    } catch (error) {
+      logger.warn(`Failed to load OpenRouter free model list. Using configured fallback only. ${error.message}`);
+    }
+  }
+
+  return candidates.filter((value, index, array) => array.indexOf(value) === index);
 };
 
 const extractTextFromContent = (content) => {
@@ -172,8 +215,8 @@ const extractTextFromContent = (content) => {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .filter((part) => part && (part.type === 'text' || typeof part.text === 'string'))
-      .map((part) => part.text || '')
+      .filter(part => part && (part.type === 'text' || typeof part.text === 'string'))
+      .map(part => part.text || '')
       .join('')
       .trim();
   }
@@ -199,7 +242,7 @@ const buildMessageContent = (parts = []) => {
 };
 
 const mapHistoryToMessages = (history, prompt, image) => {
-  const messages = history.map((entry) => {
+  const messages = history.map(entry => {
     const role = entry?.role === 'model' ? 'assistant' : 'user';
     return {
       role,
@@ -208,20 +251,15 @@ const mapHistoryToMessages = (history, prompt, image) => {
   });
 
   const userParts = [{ text: prompt }];
-  if (image) userParts.push({ inlineData: { data: image.data, mimeType: image.mimeType } });
-  messages.push({ role: 'user', content: buildMessageContent(userParts) });
+  if (image) {
+    userParts.push({ inlineData: { data: image.data, mimeType: image.mimeType } });
+  }
 
-  return messages;
-};
-
-const mapHistoryToTextMessages = (history, prompt) => {
-  const messages = history.map((entry) => {
-    const role = entry?.role === 'model' ? 'assistant' : 'user';
-    const text = extractTextFromContent(buildMessageContent(entry?.parts || []));
-    return { role, content: text || ' ' };
+  messages.push({
+    role: 'user',
+    content: buildMessageContent(userParts)
   });
 
-  messages.push({ role: 'user', content: String(prompt || ' ').trim() || ' ' });
   return messages;
 };
 
@@ -243,8 +281,8 @@ const mapHistoryToOllamaMessages = (history, prompt, image) => {
 
   const userParts = [{ text: prompt }];
   if (image) userParts.push({ inlineData: { data: image.data, mimeType: image.mimeType } });
-  const userText = extractTextFromContent(buildMessageContent(userParts));
 
+  const userText = extractTextFromContent(buildMessageContent(userParts));
   const userMessage = {
     role: 'user',
     content: userText || ' '
@@ -255,106 +293,190 @@ const mapHistoryToOllamaMessages = (history, prompt, image) => {
   return messages;
 };
 
-const sanitizeAssistantResponse = (text) => {
-  if (typeof text !== 'string') return '';
-  return text.trim().replace(/['"{( ]*[}\]]+\)*\s*$/g, '').trim();
+const createOpenRouterError = async (response) => {
+  const responseText = await response.text().catch(() => '');
+  const error = new Error(responseText || `OpenRouter request failed with status ${response.status}.`);
+  error.status = response.status;
+  error.retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));
+  return error;
+};
+
+const createOllamaError = async (response) => {
+  const responseText = await response.text().catch(() => '');
+  const error = new Error(responseText || `Ollama request failed with status ${response.status}.`);
+  error.status = response.status;
+  return error;
 };
 
 const requestOpenRouter = async (payload) => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('OPENROUTER_API_KEY is not set.'), { status: 503 });
+  const apiKey = process.env.OPENROUTER_API_KEY || '';
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
+    headers: getOpenRouterHeaders(apiKey),
     body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
-    const txt = await response.text();
-    throw Object.assign(new Error(txt || `OpenRouter error ${response.status}`), { status: response.status });
+    throw await createOpenRouterError(response);
   }
 
   return await response.json();
+};
+
+const createGroqError = async (response) => {
+  const responseText = await response.text().catch(() => '');
+  const error = new Error(responseText || `Groq request failed with status ${response.status}.`);
+  error.status = response.status;
+  return error;
 };
 
 const requestGroq = async (payload) => {
+  // Read API key fresh each time to ensure Vercel env updates are picked up
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('GROQ_API_KEY is not set.'), { status: 503 });
-
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const txt = await response.text();
-    throw Object.assign(new Error(txt || `Groq error ${response.status}`), { status: response.status });
+  
+  if (!apiKey) {
+    const error = new Error('GROQ_API_KEY is not configured in environment variables.');
+    error.status = 503;
+    logger.error('Groq API Key Missing:', error.message);
+    throw error;
   }
 
-  return await response.json();
-};
-
-const requestOllama = async (payload) => {
-  const headers = { 'Content-Type': 'application/json' };
-  if (OLLAMA_BASE_URL.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
-  const apiKey = process.env.OLLAMA_API_KEY;
-  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
+    logger.info(`Calling Groq API with model: ${payload.model}`);
+    const response = await fetch(GROQ_API_URL, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      const txt = await response.text();
-      throw Object.assign(new Error(`[Ollama] ${txt || `error ${response.status}`}`), { status: response.status });
+      const errorData = await createGroqError(response);
+      logger.error(`Groq API Error (${response.status}):`, errorData.message);
+      throw errorData;
     }
 
-    return await response.json();
+    const result = await response.json();
+    logger.info('Groq API call successful');
+    return result;
   } catch (error) {
-    if (!error.status) throw Object.assign(new Error(`[Ollama] Unreachable at ${OLLAMA_BASE_URL}`), { status: 503 });
+    logger.error('Groq request failed:', error.message);
     throw error;
   }
 };
 
-const generateWithOllama = async (history, prompt, image, thinkingLevel, planType, needs) => {
-  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
-  const modelCandidates = buildOllamaModelCandidates(thinkingLevel, mode, needs);
-  let lastError = null;
+const requestOllama = async (payload) => {
+  const headers = { 'Content-Type': 'application/json' };
+  
+  // Add skip-warning header for ngrok tunnels to prevent interstitial page
+  if (OLLAMA_BASE_URL.toLowerCase().includes('ngrok-free.dev') || OLLAMA_BASE_URL.toLowerCase().includes('ngrok.io')) {
+    headers['ngrok-skip-browser-warning'] = 'true';
+  }
 
+  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com');
+  if (usingCloudOllama && !process.env.OLLAMA_API_KEY) {
+    throw new Error('OLLAMA_API_KEY is not set on the server.');
+  }
+  if (process.env.OLLAMA_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    const normalized = new Error(`Ollama endpoint unreachable at ${OLLAMA_BASE_URL}.`);
+    normalized.status = 503;
+    normalized.cause = error;
+    throw normalized;
+  }
+
+  if (!response.ok) {
+    throw await createOllamaError(response);
+  }
+
+  return await response.json();
+};
+
+const buildOllamaModelCandidates = (thinkingLevel) => {
+  const mode = thinkingLevel.toUpperCase();
+  const modeModel = process.env[`OLLAMA_MODEL_${mode}`];
+  const baseModel = modeModel || process.env.OLLAMA_MODEL || 'moondream:latest';
+  const usingCloudOllama = OLLAMA_BASE_URL.toLowerCase().includes('ollama.com');
+  const localModels = usingCloudOllama ? [] : parseModelList(process.env.OLLAMA_LOCAL_MODELS);
+  const cloudModels = usingCloudOllama ? parseModelList(process.env.OLLAMA_CLOUD_MODELS) : [];
+
+  return [baseModel, modeModel, ...localModels, ...cloudModels]
+    .map(model => (typeof model === 'string' ? model.trim() : ''))
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+};
+
+const generateWithOllama = async (history, prompt, image, thinkingLevel, planType) => {
+  if (!isOllamaEnabled()) {
+    throw Object.assign(new Error('Ollama provider is disabled.'), { status: 503 });
+  }
+
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
+  const modelCandidates = buildOllamaModelCandidates(thinkingLevel);
+  if (modelCandidates.length === 0) {
+    throw Object.assign(new Error('No Ollama models configured. Set OLLAMA_MODEL or OLLAMA_LOCAL_MODELS/OLLAMA_CLOUD_MODELS.'), { status: 500 });
+  }
+
+  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
+  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
+  const messages = [
+    {
+      role: 'system',
+      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+    },
+    ...mapHistoryToOllamaMessages(history, prompt, image)
+  ];
+
+  let lastError = null;
   for (let index = 0; index < modelCandidates.length; index += 1) {
     const model = modelCandidates[index];
     const hasNextModel = index < modelCandidates.length - 1;
 
     try {
-      const response = await requestOllama({
-        model,
-        messages: [
-          { role: 'system', content: `You are SpeedAI. ${mode.instruction}${CODING_INSTRUCTION} The current user plan is ${planType}.` },
-          ...mapHistoryToOllamaMessages(history, prompt, image)
-        ],
-        stream: false,
-        options: { temperature: 0.6, num_predict: mode.maxOutputTokens }
-      });
+      const retriesForModel = hasNextModel ? 1 : 2;
+      const response = await withRetries(
+        async () => requestOllama({
+          model,
+          messages,
+          stream: false,
+          options: {
+            temperature,
+            num_predict: maxTokens
+          }
+        }),
+        retriesForModel,
+        800,
+        (error) => {
+          if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error) || error?.status === 503)) return false;
+          if (error?.status === 401) return false;
+          if (error?.status && error.status >= 400 && error.status < 500) return false;
+          return true;
+        }
+      );
 
-      const assistantText = sanitizeAssistantResponse((response?.message?.content || '').toString().trim());
+      const assistantText = (response?.message?.content || '').toString().trim();
       if (!assistantText) throw new Error('Ollama returned an empty response.');
 
-      return (async function* () { yield { text: assistantText }; })();
+      return (async function* streamSingleResponse() {
+        yield { text: assistantText };
+      })();
     } catch (error) {
       lastError = error;
-      if (hasNextModel && isModelUnavailableError(error)) {
-        logger.warn(`Ollama model ${model} unavailable. Falling back to ${modelCandidates[index + 1]}.`);
+      if (hasNextModel) {
+        logger.warn(`Ollama model ${model} failed. Falling back to ${modelCandidates[index + 1]}.`);
         continue;
       }
       throw error;
@@ -364,41 +486,214 @@ const generateWithOllama = async (history, prompt, image, thinkingLevel, planTyp
   throw lastError || new Error('Unable to generate response from Ollama.');
 };
 
-const generateWithOpenRouter = async (history, prompt, image, thinkingLevel, planType, needs) => {
+/**
+ * Generates a response using LOCAL Ollama (via Ngrok) for low-latency fast replies.
+ */
+const generateWithLocalOllama = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
-  const modelCandidates = buildOpenRouterModelCandidates(thinkingLevel, mode, needs);
-  if (needs?.needsVision && modelCandidates.length === 0) {
-    throw Object.assign(
-      new Error('No vision-capable OpenRouter model is configured. Set OPENROUTER_MODEL_* or OPENROUTER_FALLBACK_MODELS to a vision model.'),
-      { status: 502 }
-    );
-  }
-  let lastError = null;
+  const model = process.env.OLLAMA_MODEL_LOCAL_LOW || process.env.OLLAMA_LOCAL_MODEL || 'qwen2.5:3b';
+  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
+  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
+  const messages = [
+    { role: 'system', content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.` },
+    ...mapHistoryToOllamaMessages(history, prompt, image)
+  ];
 
+  const headers = { 'Content-Type': 'application/json' };
+  if (LOCAL_OLLAMA_BASE_URL.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
+
+  let response;
+  try {
+    response = await fetch(`${LOCAL_OLLAMA_BASE_URL}${OLLAMA_CHAT_PATH}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model, messages, stream: false, options: { temperature, num_predict: maxTokens } })
+    });
+  } catch (error) {
+    const normalized = new Error(`Local Ollama unreachable at ${LOCAL_OLLAMA_BASE_URL}.`);
+    normalized.status = 503;
+    throw normalized;
+  }
+
+  if (!response.ok) throw await createOllamaError(response);
+
+  const data = await response.json();
+  const assistantText = (data?.message?.content || '').toString().trim();
+  if (!assistantText) throw new Error('Local Ollama returned an empty response.');
+
+  return (async function* () { yield { text: assistantText }; })();
+};
+
+/**
+ * Executes a function with exponential backoff retries.
+ * @param {Function} fn - The async function to execute.
+ * @param {number} retries - Maximum number of retries.
+ * @param {number} baseDelayMs - Base delay in milliseconds.
+ */
+const withRetries = async (fn, retries = 3, baseDelayMs = 1000, shouldRetry = () => true) => {
+  let attempt = 0;
+  while (attempt < retries) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt++;
+      logger.warn(`OpenRouter API call failed (Attempt ${attempt}/${retries}): ${error.message}`);
+      
+      if (!shouldRetry(error)) {
+        logger.error('OpenRouter error is non-retriable for this attempt', error);
+        throw error;
+      }
+
+      if (attempt >= retries) {
+        logger.error('Max retries reached for OpenRouter API');
+        throw error;
+      }
+      
+      const backoffDelay = baseDelayMs * Math.pow(2, attempt - 1);
+      const providerDelay = extractRetryDelayMs(error);
+      const retryDelay = Math.max(backoffDelay, providerDelay);
+      logger.info(`Waiting ${retryDelay}ms before retry...`);
+      await delay(retryDelay);
+    }
+  }
+};
+
+/**
+ * Calls Groq API with history.
+ * @param {Array} history - The chat history
+ * @param {string} prompt - The new user prompt
+ * @returns {AsyncGenerator} An async generator yielding chunks of the response
+ */
+const generateWithGroq = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
+  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
+  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
+  const messages = [
+    {
+      role: 'system',
+      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+    },
+    ...mapHistoryToMessages(history, prompt, image)
+  ];
+
+  try {
+    logger.info(`GenerateWithGroq: Using model ${mode.model} for ${thinkingLevel} level`);
+    
+    const response = await withRetries(
+      async () => {
+        return await requestGroq({
+          model: mode.model,
+          messages,
+          temperature,
+          max_tokens: maxTokens
+        });
+      },
+      3,
+      1000,
+      (error) => {
+        // Never retry auth failures
+        if (error?.status === 401) return false;
+        if (error?.status === 429) return true;
+        if (error?.status && error.status >= 400 && error.status < 500) return false;
+        return true;
+      }
+    );
+
+    const assistantText = extractTextFromContent(response?.choices?.[0]?.message?.content);
+    if (!assistantText) {
+      throw new Error('Groq returned an empty response.');
+    }
+
+    return (async function* streamSingleResponse() {
+      yield { text: assistantText };
+      if (response?.usage) {
+        yield {
+          usage: response.usage,
+          provider: 'groq',
+          model: mode.model,
+          thinkingLevel
+        };
+      }
+    })();
+  } catch (error) {
+    logger.error(`GenerateWithGroq failed for ${thinkingLevel} mode:`, error.message);
+    throw error;
+  }
+};
+
+/**
+ * Calls OpenRouter with history.
+ * @param {Array} history - The chat history [{role, parts: [{text}]}]
+ * @param {string} prompt - The new user prompt
+ * @returns {AsyncGenerator} An async generator yielding chunks of the response
+ */
+const generateWithOpenRouter = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
+  const apiKey = process.env.OPENROUTER_API_KEY || '';
+  const modelCandidates = await buildModelCandidates(apiKey, mode.model);
+  const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
+  const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
+  const messages = [
+    {
+      role: 'system',
+      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+    },
+    ...mapHistoryToMessages(history, prompt, image)
+  ];
+
+  let lastError = null;
   for (let index = 0; index < modelCandidates.length; index += 1) {
     const model = modelCandidates[index];
     const hasNextModel = index < modelCandidates.length - 1;
 
     try {
-      const response = await requestOpenRouter({
-        model,
-        messages: [
-          { role: 'system', content: `You are SpeedAI. ${mode.instruction}${CODING_INSTRUCTION} The current user plan is ${planType}.` },
-          ...mapHistoryToMessages(history, prompt, image)
-        ],
-        temperature: 0.7,
-        max_tokens: mode.maxOutputTokens,
-        stream: false
-      });
+      const retriesForModel = hasNextModel ? 1 : 3;
+      const response = await withRetries(
+        async () => {
+          return await requestOpenRouter({
+            model,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+            stream: false
+          });
+        },
+        retriesForModel,
+        1000,
+        (error) => {
+          // If there is another model to try, fail fast on quota/model errors and switch immediately.
+          if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error))) {
+            return false;
+          }
+          // Never retry auth failures.
+          if (error?.status === 401) return false;
+          // Retry transient errors and rate limits when this is the last model.
+          if (error?.status === 429) return true;
+          if (error?.status && error.status >= 400 && error.status < 500) return false;
+          return true;
+        }
+      );
 
-      const assistantText = sanitizeAssistantResponse(extractTextFromContent(response?.choices?.[0]?.message?.content));
-      if (!assistantText) throw new Error('OpenRouter returned an empty response.');
+      const assistantText = extractTextFromContent(response?.choices?.[0]?.message?.content);
+      if (!assistantText) {
+        throw new Error('OpenRouter returned an empty response.');
+      }
 
-      return (async function* () { yield { text: assistantText }; })();
+      return (async function* streamSingleResponse() {
+        yield { text: assistantText };
+        if (response?.usage) {
+          yield {
+            usage: response.usage,
+            provider: 'openrouter',
+            model,
+            thinkingLevel
+          };
+        }
+      })();
     } catch (error) {
       lastError = error;
-      if (hasNextModel && isModelUnavailableError(error)) {
-        logger.warn(`OpenRouter model ${model} unavailable. Falling back to ${modelCandidates[index + 1]}.`);
+      if (hasNextModel && (isQuotaError(error) || isModelUnavailableError(error))) {
+        logger.warn(`Model ${model} failed. Falling back to ${modelCandidates[index + 1]}.`);
         continue;
       }
       throw error;
@@ -408,120 +703,105 @@ const generateWithOpenRouter = async (history, prompt, image, thinkingLevel, pla
   throw lastError || new Error('Unable to generate response from OpenRouter.');
 };
 
-const generateWithGroq = async (history, prompt, image, thinkingLevel, planType, needs) => {
-  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
-  const modelCandidates = buildGroqModelCandidates(thinkingLevel, mode, needs);
-  if (needs?.needsVision && modelCandidates.length === 0) {
-    throw Object.assign(new Error('Groq does not have a configured vision-capable model for image analysis.'), { status: 502 });
+const generateWithGemini = async (history, prompt, image = null, thinkingLevel = 'god', planType = 'guest') => {
+  const { GoogleGenAI } = require('@google/genai');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set on the server.');
+  
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.god;
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const contents = history.map(entry => {
+    return {
+      role: entry.role === 'model' ? 'model' : 'user',
+      parts: (entry.parts || []).map(p => {
+        if (p.text) return { text: p.text };
+        if (p.inlineData) return { inlineData: { data: p.inlineData.data, mimeType: p.inlineData.mimeType } };
+        return { text: '' };
+      })
+    };
+  });
+  
+  const promptParts = [{ text: prompt }];
+  if (image) {
+    promptParts.push({ inlineData: { data: image.data, mimeType: image.mimeType } });
   }
-  let lastError = null;
+  contents.push({ role: 'user', parts: promptParts });
 
-  for (let index = 0; index < modelCandidates.length; index += 1) {
-    const model = modelCandidates[index];
-    const hasNextModel = index < modelCandidates.length - 1;
-
-    try {
-      const response = await requestGroq({
-        model,
-        messages: [
-          { role: 'system', content: `You are SpeedAI. ${mode.instruction}${CODING_INSTRUCTION} The current user plan is ${planType}.` },
-          ...mapHistoryToTextMessages(history, prompt)
-        ],
-        temperature: 0.6,
-        max_tokens: mode.maxOutputTokens,
-        stream: false
-      });
-
-      const assistantText = sanitizeAssistantResponse(extractTextFromContent(response?.choices?.[0]?.message?.content));
-      if (!assistantText) throw new Error('Groq returned an empty response.');
-
-      return (async function* () { yield { text: assistantText }; })();
-    } catch (error) {
-      lastError = error;
-      if (hasNextModel && isModelUnavailableError(error)) {
-        logger.warn(`Groq model ${model} unavailable. Falling back to ${modelCandidates[index + 1]}.`);
-        continue;
-      }
-      throw error;
+  const responseStream = await ai.models.generateContentStream({
+    model: mode.model,
+    contents,
+    config: {
+      systemInstruction: `You are cyAIrhiel. ${mode.instruction} The current user plan is ${planType}.`,
+      tools: [{ googleSearch: {} }],
+      temperature: parseFloat(process.env.TEMPERATURE) || 0.7,
     }
-  }
+  });
 
-  throw lastError || new Error('Unable to generate response from Groq.');
+  return (async function* () {
+    for await (const chunk of responseStream) {
+      if (chunk.text) yield { text: chunk.text };
+    }
+  })();
 };
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 'high', planType = 'guest') => {
+  if (!puter) throw new Error('Puter AI is not initialized. Check PUTER_TOKEN.');
+
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.high;
+  const messages = [
+    {
+      role: 'system',
+      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+    },
+    ...mapHistoryToMessages(history, prompt, image)
+  ];
+
+  try {
+    logger.info(`GenerateWithPuter: Using model ${mode.model} for ${thinkingLevel} level`);
+    
+    // Puter AI chat (Node.js version is usually non-streaming or handled differently)
+    const response = await puter.ai.chat(messages, {
+      model: mode.model
+    });
+
+    const assistantText = response?.message?.content;
+    if (!assistantText) {
+      throw new Error('Puter AI returned an empty response.');
+    }
+
+    return (async function* streamSingleResponse() {
+      yield { text: assistantText };
+    })();
+  } catch (error) {
+    logger.error(`GenerateWithPuter failed for ${thinkingLevel} mode:`, error.message);
+    throw error;
+  }
+};
 
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
-  const mode = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase();
-  const needs = detectPromptNeeds(prompt, image);
-
-  if (needs.needsVision && mode === 'groq-only') {
-    throw Object.assign(new Error('Image analysis is not supported in groq-only mode. Use AI_PROVIDER=auto or openrouter-only.'), { status: 400 });
-  }
-
-  const providersByMode = {
-    'ollama-only': ['ollama'],
-    'groq-only': ['groq'],
-    'openrouter-only': ['openrouter'],
-    auto: buildProviderOrder(needs)
-  };
-
-  const providerOrder = providersByMode[mode] || providersByMode.auto;
-  const errors = [];
-
-  for (const provider of providerOrder) {
-    let attempts = 0;
-    const maxAttempts = 2; // Retry once if rate limited
-
-    while (attempts < maxAttempts) {
+  const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
+  
+  try {
+    if (mode.provider === 'puter') {
+      return await generateWithPuter(history, prompt, image, thinkingLevel, planType);
+    }
+    return await generateWithGroq(history, prompt, image, thinkingLevel, planType);
+  } catch (error) {
+    // If primary provider fails, try OpenRouter as fallback
+    if (isOpenRouterFallbackEnabled()) {
+      logger.warn(`${mode.provider || 'Groq'} API failed for ${thinkingLevel} mode, trying OpenRouter fallback. ${error.message}`);
       try {
-        if (provider === 'ollama') {
-          if (!isOllamaEnabled()) break;
-          return await generateWithOllama(history, prompt, image, thinkingLevel, planType, needs);
-        }
-
-        if (provider === 'groq') {
-          if (!isGroqEnabled()) break;
-          return await generateWithGroq(history, prompt, image, thinkingLevel, planType, needs);
-        }
-
-        if (provider === 'openrouter') {
-          if (!isOpenRouterEnabled()) break;
-          return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType, needs);
-        }
-      } catch (error) {
-        attempts += 1;
-        const isRateLimit = error.status === 429 || error.message.toLowerCase().includes('rate limit');
-        
-        if (isRateLimit && attempts < maxAttempts) {
-          const waitTime = attempts * 2000; // 2s, 4s...
-          logger.warn(`${provider} rate limited. Retrying in ${waitTime}ms (Attempt ${attempts}/${maxAttempts})...`);
-          await sleep(waitTime);
-          continue;
-        }
-
-        errors.push({ provider, error });
-        logger.warn(`${provider} failed (${error.message}), trying next provider`);
-        break; // Move to next provider
+        return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
+      } catch (fallbackError) {
+        logger.error(`Both primary and OpenRouter failed: ${fallbackError.message}`);
+        throw fallbackError;
       }
     }
+    throw error;
   }
-
-  if (errors.length > 0) {
-    const last = errors[errors.length - 1].error;
-    throw last;
-  }
-
-  throw new Error('No AI provider is available for this request.');
 };
 
 module.exports = {
-  generateChatStream,
-  __internal: {
-    detectPromptNeeds,
-    buildProviderOrder,
-    buildOllamaModelCandidates,
-    buildOpenRouterModelCandidates,
-    buildGroqModelCandidates
-  }
+  generateChatStream
 };
