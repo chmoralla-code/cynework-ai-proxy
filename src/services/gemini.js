@@ -805,16 +805,3 @@ const generateChatStream = async (history, prompt, image = null, thinkingLevel =
 module.exports = {
   generateChatStream
 };
-story, prompt, image, thinkingLevel, planType);
-      } catch (fallbackError) {
-        logger.error(`Both primary and OpenRouter failed: ${fallbackError.message}`);
-        throw fallbackError;
-      }
-    }
-    throw error;
-  }
-};
-
-module.exports = {
-  generateChatStream
-};
