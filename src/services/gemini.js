@@ -43,19 +43,19 @@ const THINKING_MODE = {
   },
   high: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_HIGH || 'claude-4-6-sonnet',
+    model: process.env.PUTER_MODEL_HIGH || 'claude-3-5-sonnet',
     maxOutputTokens: 4000,
     instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. Analyze images if provided.'
   },
   ultra: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_ULTRA || 'claude-4-6-sonnet',
+    model: process.env.PUTER_MODEL_ULTRA || 'claude-3-5-sonnet',
     maxOutputTokens: 8000,
     instruction: 'Provide deep research, analysis, and comprehensive facts. Think step-by-step through complex problems. Break down complex problems into logical steps. Specialized for coding and reasoning. Show your work and reasoning process clearly.'
   },
   god: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_GOD || 'claude-4-6-sonnet',
+    model: process.env.PUTER_MODEL_GOD || 'claude-3-5-sonnet',
     maxOutputTokens: 16384,
     instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
   },
@@ -799,23 +799,44 @@ const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 
 };
 
 const generateImageWithPuter = async (prompt) => {
-  if (!puter) throw new Error('Puter AI is not initialized. Check PUTER_TOKEN.');
+  if (!puterToken) throw new Error('Puter AI is not initialized. Check PUTER_TOKEN.');
 
   try {
     logger.info(`GenerateImageWithPuter: Generating image for prompt: "${prompt}"`);
-    const response = await puter.ai.txt2img(prompt, {
-      model: 'gpt-image-2'
+    
+    const response = await fetch("https://api.puter.com/drivers/call", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${puterToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        interface: "puter-image-generation",
+        driver: "ai-image",
+        method: "generate",
+        args: {
+            prompt: prompt,
+            model: "gpt-image-2",
+            responseType: "json"
+        }
+      })
     });
 
-    const imageUrl = response.toString();
-    logger.info(`GenerateImageWithPuter: Image generated successfully: ${imageUrl}`);
+    const data = await response.json();
+    
+    if (!response.ok || data.error) {
+       throw new Error(data.message || data.error || 'Failed to generate image');
+    }
+
+    const imageUrl = data.result || data;
+    logger.info(`GenerateImageWithPuter: Image generated successfully`);
     
     return (async function* () {
       yield { text: `GENERATED_IMAGE:${imageUrl}` };
     })();
   } catch (error) {
     logger.error(`GenerateImageWithPuter failed:`, error.message);
-    throw error;
+    throw Object.assign(new Error(error.message), { status: 502 });
   }
 };
 

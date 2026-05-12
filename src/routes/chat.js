@@ -127,6 +127,7 @@ const getChatErrorResponse = (error) => {
 };
 
 router.get('/public-config', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   const supabase = getSupabasePublicConfig();
   res.json({
     supabase,
