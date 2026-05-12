@@ -798,15 +798,38 @@ const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 
   }
 };
 
-const generateImageWithPuter = async (prompt) => {
+const generateImageWithPuter = async (history, prompt) => {
   try {
-    logger.info(`GenerateImageWithPuter: Generating image via Pollinations AI for prompt: "${prompt}"`);
+    logger.info(`GenerateImageWithPuter: Analyzing chat history to generate image prompt...`);
     
-    // Fallback to a fast, strong, and free model via Pollinations AI
-    const encodedPrompt = encodeURIComponent(prompt);
-    // Generate a random seed to ensure unique images
+    // 1. Analyze the context using Pollinations Text API
+    const messages = [
+        { role: 'system', content: 'You are an expert AI image prompt generator. Analyze the user\'s conversation history and their new request. Output ONLY a highly detailed, descriptive, and creative prompt for an image generator (like Midjourney or Flux). Do NOT include conversational text, just the raw image prompt. Ensure the prompt captures the full context of what the user wants based on previous messages if they refer back to them.' },
+        ...history.map(entry => ({
+            role: entry.role === 'model' ? 'assistant' : 'user',
+            content: extractTextFromContent(buildMessageContent(entry.parts || []))
+        })),
+        { role: 'user', content: prompt }
+    ];
+
+    let finalPrompt = prompt;
+    try {
+      const textRes = await fetch('https://text.pollinations.ai/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages })
+      });
+      if (textRes.ok) {
+          finalPrompt = (await textRes.text()).trim();
+          logger.info(`Context-aware prompt generated: "${finalPrompt}"`);
+      }
+    } catch (textErr) {
+      logger.warn('Failed to analyze history, falling back to raw prompt', textErr);
+    }
+    
+    // 2. Generate the image using the context-aware prompt
+    const encodedPrompt = encodeURIComponent(finalPrompt);
     const seed = Math.floor(Math.random() * 1000000);
-    // Lower resolution (512x512) for faster generation
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
 
     logger.info(`GenerateImageWithPuter: Image URL created successfully`);
@@ -822,7 +845,7 @@ const generateImageWithPuter = async (prompt) => {
 
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
   if (thinkingLevel === 'image-generate') {
-    return await generateImageWithPuter(prompt);
+    return await generateImageWithPuter(history, prompt);
   }
 
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
