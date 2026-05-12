@@ -806,7 +806,8 @@ const generateImageWithPuter = async (prompt) => {
     const encodedPrompt = encodeURIComponent(prompt);
     // Generate a random seed to ensure unique images
     const seed = Math.floor(Math.random() * 1000000);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
+    // Lower resolution (512x512) for faster generation
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
 
     logger.info(`GenerateImageWithPuter: Image URL created successfully`);
     

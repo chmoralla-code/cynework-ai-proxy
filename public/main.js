@@ -720,6 +720,7 @@ chatForm.addEventListener('submit', async (e) => {
             const imgContainer = document.createElement('div');
             imgContainer.style.marginTop = '10px';
             imgContainer.style.position = 'relative';
+            imgContainer.style.display = 'inline-block';
             
             const loader = document.createElement('span');
             loader.className = 'typing-indicator';
@@ -727,15 +728,47 @@ chatForm.addEventListener('submit', async (e) => {
             loader.style.display = 'block';
             loader.style.marginBottom = '10px';
             
+            const imgWrapper = document.createElement('div');
+            imgWrapper.style.position = 'relative';
+            imgWrapper.style.display = 'none'; // Hide until loaded
+            
             const img = document.createElement('img');
             img.className = 'message-image';
             img.style.maxWidth = '100%';
             img.style.borderRadius = '8px';
-            img.style.display = 'none'; // Hide until loaded
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerHTML = '⬇ Download';
+            downloadBtn.className = 'nav-btn-primary';
+            downloadBtn.style.position = 'absolute';
+            downloadBtn.style.bottom = '10px';
+            downloadBtn.style.right = '10px';
+            downloadBtn.style.padding = '6px 12px';
+            downloadBtn.style.fontSize = '12px';
+            downloadBtn.style.borderRadius = '6px';
+            downloadBtn.style.opacity = '0.9';
+            downloadBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+            
+            downloadBtn.onclick = async () => {
+              try {
+                const res = await fetch(imageUrl);
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `generated-image-${Date.now()}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+              } catch (e) {
+                window.open(imageUrl, '_blank');
+              }
+            };
             
             img.onload = () => {
                loader.style.display = 'none';
-               img.style.display = 'block';
+               imgWrapper.style.display = 'inline-block';
                chatHistory.scrollTop = chatHistory.scrollHeight;
             };
             
@@ -746,8 +779,11 @@ chatForm.addEventListener('submit', async (e) => {
 
             img.src = imageUrl;
             
+            imgWrapper.appendChild(img);
+            imgWrapper.appendChild(downloadBtn);
+            
             imgContainer.appendChild(loader);
-            imgContainer.appendChild(img);
+            imgContainer.appendChild(imgWrapper);
             
             botContentDiv.innerHTML = '';
             botContentDiv.appendChild(imgContainer);
