@@ -107,8 +107,8 @@ const validateImage = (image) => {
 
 const validateThinkingLevel = (thinkingLevel) => {
   const normalized = (thinkingLevel || 'low').toString().trim().toLowerCase();
-  if (!['low', 'medium', 'high'].includes(normalized)) {
-    throw new Error('Invalid thinking level. Use low, medium, or high.');
+  if (!['low', 'medium', 'high', 'ultra', 'god'].includes(normalized)) {
+    throw new Error('Invalid thinking level. Use low, medium, high, ultra, or god.');
   }
   return normalized;
 };
