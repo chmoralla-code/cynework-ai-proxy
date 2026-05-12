@@ -31,13 +31,13 @@ const freeModelsCache = {
 const THINKING_MODE = {
   low: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_LOW || 'claude-4-6-sonnet',
+    model: process.env.PUTER_MODEL_LOW || 'gemini-3.1-flash-lite',
     maxOutputTokens: 1000,
     instruction: 'Give concise, practical answers with minimal reasoning steps.'
   },
   medium: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_MEDIUM || 'claude-4-6-sonnet',
+    model: process.env.PUTER_MODEL_MEDIUM || 'gemini-3.1-flash-lite',
     maxOutputTokens: 2000,
     instruction: 'Provide clear reasoning, examples, and short step-by-step guidance.'
   },
