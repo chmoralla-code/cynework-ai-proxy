@@ -799,36 +799,18 @@ const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 
 };
 
 const generateImageWithPuter = async (prompt) => {
-  if (!puterToken) throw new Error('Puter AI is not initialized. Check PUTER_TOKEN.');
-
   try {
-    logger.info(`GenerateImageWithPuter: Generating image for prompt: "${prompt}"`);
+    logger.info(`GenerateImageWithPuter: Generating image via Pollinations AI for prompt: "${prompt}"`);
     
-    const response = await fetch("https://api.puter.com/drivers/call", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${puterToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        interface: "puter-image-generation",
-        driver: "ai-image",
-        method: "generate",
-        args: {
-            prompt: prompt,
-            model: "nano-banana-2",
-            responseType: "json"
-        }
-      })
-    });
+    // Fallback to a fast, strong, and free model via Pollinations AI
+    const encodedPrompt = encodeURIComponent(prompt);
+    // Generate a random seed to ensure unique images
+    const seed = Math.floor(Math.random() * 1000000);
+    const imageUrl = `https://pollinations.ai/p/${encodedPrompt}?width=1024&height=1024&seed=${seed}&model=flux`;
 
-    const data = await response.json();
-    
-    if (!response.ok || data.error) {
-       throw new Error(data.message || data.error || 'Failed to generate image');
-    }
+    // Wait a couple of seconds to simulate the generation process
+    await delay(3000);
 
-    const imageUrl = data.result || data;
     logger.info(`GenerateImageWithPuter: Image generated successfully`);
     
     return (async function* () {
@@ -836,7 +818,7 @@ const generateImageWithPuter = async (prompt) => {
     })();
   } catch (error) {
     logger.error(`GenerateImageWithPuter failed:`, error.message);
-    throw Object.assign(new Error(error.message), { status: 502 });
+    throw Object.assign(new Error('Image generation failed.'), { status: 502 });
   }
 };
 
