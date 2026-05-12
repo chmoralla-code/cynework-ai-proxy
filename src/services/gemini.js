@@ -816,7 +816,7 @@ const generateImageWithPuter = async (prompt) => {
         method: "generate",
         args: {
             prompt: prompt,
-            model: "gpt-image-2",
+            model: "nano-banana-2",
             responseType: "json"
         }
       })
