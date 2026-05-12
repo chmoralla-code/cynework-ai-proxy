@@ -435,7 +435,7 @@ const generateWithOllama = async (history, prompt, image, thinkingLevel, planTyp
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToOllamaMessages(history, prompt, image)
   ];
@@ -495,7 +495,7 @@ const generateWithLocalOllama = async (history, prompt, image = null, thinkingLe
   const maxTokens = parseInt(process.env.MAX_TOKENS, 10) || mode.maxOutputTokens;
   const temperature = parseFloat(process.env.TEMPERATURE) || 0.7;
   const messages = [
-    { role: 'system', content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.` },
+    { role: 'system', content: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.` },
     ...mapHistoryToOllamaMessages(history, prompt, image)
   ];
 
@@ -571,7 +571,7 @@ const generateWithGroq = async (history, prompt, image = null, thinkingLevel = '
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToMessages(history, prompt, image)
   ];
@@ -636,7 +636,7 @@ const generateWithOpenRouter = async (history, prompt, image = null, thinkingLev
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToMessages(history, prompt, image)
   ];
@@ -732,7 +732,7 @@ const generateWithGemini = async (history, prompt, image = null, thinkingLevel =
     model: mode.model,
     contents,
     config: {
-      systemInstruction: `You are cyAIrhiel. ${mode.instruction} The current user plan is ${planType}.`,
+      systemInstruction: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`,
       tools: [{ googleSearch: {} }],
       temperature: parseFloat(process.env.TEMPERATURE) || 0.7,
     }
@@ -752,7 +752,7 @@ const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 
   const messages = [
     {
       role: 'system',
-      content: `You are Cynework AI. ${mode.instruction} The current user plan is ${planType}.`
+      content: `You are SpeedAI. If asked who created you or this website, you must answer "Cyrhiel Moralla". ${mode.instruction} The current user plan is ${planType}.`
     },
     ...mapHistoryToMessages(history, prompt, image)
   ];
@@ -793,6 +793,19 @@ const generateChatStream = async (history, prompt, image = null, thinkingLevel =
       logger.warn(`${mode.provider || 'Groq'} API failed for ${thinkingLevel} mode, trying OpenRouter fallback. ${error.message}`);
       try {
         return await generateWithOpenRouter(history, prompt, image, thinkingLevel, planType);
+      } catch (fallbackError) {
+        logger.error(`Both primary and OpenRouter failed: ${fallbackError.message}`);
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
+};
+
+module.exports = {
+  generateChatStream
+};
+story, prompt, image, thinkingLevel, planType);
       } catch (fallbackError) {
         logger.error(`Both primary and OpenRouter failed: ${fallbackError.message}`);
         throw fallbackError;
