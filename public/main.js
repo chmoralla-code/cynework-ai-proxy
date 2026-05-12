@@ -702,9 +702,26 @@ chatForm.addEventListener('submit', async (e) => {
             botContentDiv.innerHTML = '<span></span>';
             isFirstChunk = false;
           }
-          fullResponse += data.text;
-          const textSpan = botContentDiv.querySelector('span');
-          textSpan.textContent = fullResponse;
+
+          if (data.text.startsWith('GENERATED_IMAGE:')) {
+            const imageUrl = data.text.replace('GENERATED_IMAGE:', '');
+            const imgContainer = document.createElement('div');
+            imgContainer.style.marginTop = '10px';
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.className = 'message-image';
+            img.style.maxWidth = '100%';
+            img.style.borderRadius = '8px';
+            imgContainer.appendChild(img);
+            
+            botContentDiv.innerHTML = '';
+            botContentDiv.appendChild(imgContainer);
+            fullResponse = data.text;
+          } else {
+            fullResponse += data.text;
+            const textSpan = botContentDiv.querySelector('span');
+            textSpan.textContent = fullResponse;
+          }
           chatHistory.scrollTop = chatHistory.scrollHeight;
         }
       }

@@ -2,11 +2,11 @@ const { getSupabaseServiceClient } = require('./supabase');
 const logger = require('../utils/logger');
 
 const PLAN_LIMITS = {
-  guest: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
-  free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
-  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] },
-  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] },
-  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] }
+  guest: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'image-generate'] },
+  free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'image-generate'] },
+  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] },
+  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] },
+  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] }
 };
 
 const inMemoryUsage = new Map();

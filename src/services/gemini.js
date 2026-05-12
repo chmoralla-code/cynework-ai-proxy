@@ -58,6 +58,11 @@ const THINKING_MODE = {
     model: process.env.PUTER_MODEL_GOD || 'claude-4-6-sonnet',
     maxOutputTokens: 16384,
     instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
+  },
+  'image-generate': {
+    provider: 'puter-image',
+    model: 'gpt-image-2',
+    instruction: 'Generating image based on your prompt...'
   }
 };
 
@@ -793,7 +798,32 @@ const generateWithPuter = async (history, prompt, image = null, thinkingLevel = 
   }
 };
 
+const generateImageWithPuter = async (prompt) => {
+  if (!puter) throw new Error('Puter AI is not initialized. Check PUTER_TOKEN.');
+
+  try {
+    logger.info(`GenerateImageWithPuter: Generating image for prompt: "${prompt}"`);
+    const response = await puter.ai.txt2img(prompt, {
+      model: 'gpt-image-2'
+    });
+
+    const imageUrl = response.toString();
+    logger.info(`GenerateImageWithPuter: Image generated successfully: ${imageUrl}`);
+    
+    return (async function* () {
+      yield { text: `GENERATED_IMAGE:${imageUrl}` };
+    })();
+  } catch (error) {
+    logger.error(`GenerateImageWithPuter failed:`, error.message);
+    throw error;
+  }
+};
+
 const generateChatStream = async (history, prompt, image = null, thinkingLevel = 'low', planType = 'guest') => {
+  if (thinkingLevel === 'image-generate') {
+    return await generateImageWithPuter(prompt);
+  }
+
   const mode = THINKING_MODE[thinkingLevel] || THINKING_MODE.low;
   
   try {
