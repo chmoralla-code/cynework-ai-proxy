@@ -31,31 +31,31 @@ const freeModelsCache = {
 const THINKING_MODE = {
   low: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_LOW || 'claude-3-5-sonnet',
+    model: process.env.PUTER_MODEL_LOW || 'claude-4-6-sonnet',
     maxOutputTokens: 1000,
     instruction: 'Give concise, practical answers with minimal reasoning steps.'
   },
   medium: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_MEDIUM || 'claude-3-5-sonnet',
+    model: process.env.PUTER_MODEL_MEDIUM || 'claude-4-6-sonnet',
     maxOutputTokens: 2000,
     instruction: 'Provide clear reasoning, examples, and short step-by-step guidance.'
   },
   high: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_HIGH || 'claude-3-5-sonnet',
+    model: process.env.PUTER_MODEL_HIGH || 'claude-4-6-sonnet',
     maxOutputTokens: 4000,
     instruction: 'Provide deep analysis, alternatives, trade-offs, and an actionable recommendation. Analyze images if provided.'
   },
   ultra: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_ULTRA || 'claude-3-5-sonnet',
+    model: process.env.PUTER_MODEL_ULTRA || 'claude-4-6-sonnet',
     maxOutputTokens: 8000,
     instruction: 'Provide deep research, analysis, and comprehensive facts. Think step-by-step through complex problems. Break down complex problems into logical steps. Specialized for coding and reasoning. Show your work and reasoning process clearly.'
   },
   god: {
     provider: 'puter',
-    model: process.env.PUTER_MODEL_GOD || 'claude-3-5-sonnet',
+    model: process.env.PUTER_MODEL_GOD || 'claude-4-6-sonnet',
     maxOutputTokens: 16384,
     instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
   }
