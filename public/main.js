@@ -647,7 +647,19 @@ chatForm.addEventListener('submit', async (e) => {
   appendMessage('user', message, sentImage);
   const botContentDiv = appendMessage('model', '');
   botContentDiv.parentElement.classList.add('loading');
-  botContentDiv.innerHTML = '<span class="typing-indicator">answering...</span>';
+  
+  if (thinkingLevel.value === 'image-generate') {
+    botContentDiv.innerHTML = '<span class="typing-indicator" id="loadingText">generating...</span>';
+    setTimeout(() => {
+      const loadingText = botContentDiv.querySelector('#loadingText');
+      if (loadingText && loadingText.textContent === 'generating...') {
+        loadingText.textContent = 'almost done...';
+      }
+    }, 4000); // Change text after 4 seconds
+  } else {
+    botContentDiv.innerHTML = '<span class="typing-indicator">answering...</span>';
+  }
+  
   let fullResponse = '';
   let isFirstChunk = true;
 
