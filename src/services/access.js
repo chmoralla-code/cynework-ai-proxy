@@ -4,9 +4,9 @@ const logger = require('../utils/logger');
 const PLAN_LIMITS = {
   guest: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
   free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low'] },
-  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra'] },
-  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra'] },
-  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra'] }
+  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] },
+  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] },
+  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god'] }
 };
 
 const inMemoryUsage = new Map();
