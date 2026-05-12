@@ -719,11 +719,34 @@ chatForm.addEventListener('submit', async (e) => {
             const imageUrl = data.text.replace('GENERATED_IMAGE:', '');
             const imgContainer = document.createElement('div');
             imgContainer.style.marginTop = '10px';
+            imgContainer.style.position = 'relative';
+            
+            const loader = document.createElement('span');
+            loader.className = 'typing-indicator';
+            loader.textContent = 'finalizing image...';
+            loader.style.display = 'block';
+            loader.style.marginBottom = '10px';
+            
             const img = document.createElement('img');
-            img.src = imageUrl;
             img.className = 'message-image';
             img.style.maxWidth = '100%';
             img.style.borderRadius = '8px';
+            img.style.display = 'none'; // Hide until loaded
+            
+            img.onload = () => {
+               loader.style.display = 'none';
+               img.style.display = 'block';
+               chatHistory.scrollTop = chatHistory.scrollHeight;
+            };
+            
+            img.onerror = () => {
+               loader.textContent = 'Failed to load image from server.';
+               loader.style.color = 'var(--error)';
+            };
+
+            img.src = imageUrl;
+            
+            imgContainer.appendChild(loader);
             imgContainer.appendChild(img);
             
             botContentDiv.innerHTML = '';

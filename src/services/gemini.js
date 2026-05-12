@@ -808,10 +808,7 @@ const generateImageWithPuter = async (prompt) => {
     const seed = Math.floor(Math.random() * 1000000);
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
 
-    // Wait a couple of seconds to simulate the generation process
-    await delay(3000);
-
-    logger.info(`GenerateImageWithPuter: Image generated successfully`);
+    logger.info(`GenerateImageWithPuter: Image URL created successfully`);
     
     return (async function* () {
       yield { text: `GENERATED_IMAGE:${imageUrl}` };
