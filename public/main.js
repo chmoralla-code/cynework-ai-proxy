@@ -210,6 +210,32 @@ const extractArtifacts = (text) => {
   return artifacts;
 };
 
+// Configure Marked.js for syntax highlighting if available
+if (typeof marked !== 'undefined' && typeof hljs !== 'undefined') {
+  marked.setOptions({
+    highlight: function(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    },
+    langPrefix: 'hljs language-',
+    breaks: true,
+    gfm: true
+  });
+}
+
+const renderMarkdown = (text) => {
+  if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+    return DOMPurify.sanitize(marked.parse(text));
+  }
+  return escapeHtml(text);
+};
+
+const escapeHtml = (text) => {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const appendMessage = (role, text, image = null) => {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
@@ -222,7 +248,7 @@ const appendMessage = (role, text, image = null) => {
   }
 
   const contentDiv = document.createElement('div');
-  contentDiv.className = 'message-content';
+  contentDiv.className = 'message-content markdown-body';
 
   if (image) {
     const img = document.createElement('img');
@@ -232,8 +258,12 @@ const appendMessage = (role, text, image = null) => {
   }
 
   if (text) {
-    const textSpan = document.createElement('span');
-    textSpan.textContent = text;
+    const textSpan = document.createElement('div');
+    if (role === 'user') {
+      textSpan.textContent = text; // Keep user input plain text to prevent injection via markdown
+    } else {
+      textSpan.innerHTML = renderMarkdown(text);
+    }
     contentDiv.appendChild(textSpan);
     
     // Check for artifacts in AI responses
@@ -790,8 +820,8 @@ chatForm.addEventListener('submit', async (e) => {
             fullResponse = data.text;
           } else {
             fullResponse += data.text;
-            const textSpan = botContentDiv.querySelector('span');
-            textSpan.textContent = fullResponse;
+            const textSpan = botContentDiv.querySelector('div') || botContentDiv.querySelector('span');
+            textSpan.innerHTML = renderMarkdown(fullResponse);
           }
           chatHistory.scrollTop = chatHistory.scrollHeight;
         }
