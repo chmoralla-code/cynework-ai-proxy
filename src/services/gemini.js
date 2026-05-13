@@ -59,6 +59,12 @@ const THINKING_MODE = {
     maxOutputTokens: 16384,
     instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
   },
+  humanlike: {
+    provider: 'gemini',
+    model: 'gemini-1.5-pro',
+    maxOutputTokens: 16384,
+    instruction: 'Act as an expert AI architect. I want to build and deploy a standalone, self-hosted AI model directly on my website. It must be completely independent and not rely on third-party APIs like OpenAI or Anthropic. Please name this AI \'HUMANLIKE MODE\'. It must have two core capabilities: Live Internet Access: It needs to use web search or web scraping to answer user questions based on real-time internet data. Human-like Interaction: It needs to be prompted or fine-tuned to converse in a highly natural, empathetic, and human-like manner.'
+  },
   'image-generate': {
     provider: 'puter-image',
     model: 'gpt-image-2',
@@ -861,8 +867,9 @@ const generateChatStream = async (history, prompt, image = null, thinkingLevel =
   
   try {
     // If an image is attached, force use Gemini for vision capabilities.
-    if (image && process.env.GEMINI_API_KEY) {
-      logger.info('Image detected, routing to Gemini vision model.');
+    // Also use Gemini for 'humanlike' mode to enable search tools.
+    if ((image || thinkingLevel === 'humanlike') && process.env.GEMINI_API_KEY) {
+      logger.info(`Routing ${thinkingLevel} request to Gemini provider.`);
       return await generateWithGemini(history, prompt, image, thinkingLevel, planType);
     }
 

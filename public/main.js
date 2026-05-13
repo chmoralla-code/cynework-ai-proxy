@@ -686,6 +686,8 @@ chatForm.addEventListener('submit', async (e) => {
         loadingText.textContent = 'almost done...';
       }
     }, 4000); // Change text after 4 seconds
+  } else if (thinkingLevel.value === 'humanlike') {
+    botContentDiv.innerHTML = '<span class="typing-indicator">searching & thinking...</span>';
   } else {
     botContentDiv.innerHTML = '<span class="typing-indicator">answering...</span>';
   }

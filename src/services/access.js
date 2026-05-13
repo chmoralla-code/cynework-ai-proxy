@@ -3,10 +3,10 @@ const logger = require('../utils/logger');
 
 const PLAN_LIMITS = {
   guest: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'image-generate'] },
-  free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'image-generate'] },
-  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] },
-  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] },
-  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'image-generate'] }
+  free: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'humanlike', 'image-generate'] },
+  daily: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'humanlike', 'image-generate'] },
+  monthly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'humanlike', 'image-generate'] },
+  yearly: { maxMessagesPerDay: Number.POSITIVE_INFINITY, allowedThinking: ['low', 'medium', 'high', 'ultra', 'god', 'humanlike', 'image-generate'] }
 };
 
 const inMemoryUsage = new Map();
