@@ -60,8 +60,8 @@ const THINKING_MODE = {
     instruction: 'You are in God Mode. Provide the most comprehensive, accurate, and brilliantly structured answer possible with deep reasoning. Break problems into logical components. Show detailed analysis, alternatives, trade-offs, and recommendations. Include visual analysis if images are provided. Format with markdown for clarity.'
   },
   humanlike: {
-    provider: 'gemini',
-    model: 'gemini-1.5-pro',
+    provider: 'puter',
+    model: 'claude-3-5-sonnet',
     maxOutputTokens: 16384,
     instruction: 'Act as an expert AI architect. I want to build and deploy a standalone, self-hosted AI model directly on my website. It must be completely independent and not rely on third-party APIs like OpenAI or Anthropic. Please name this AI \'HUMANLIKE MODE\'. It must have two core capabilities: Live Internet Access: It needs to use web search or web scraping to answer user questions based on real-time internet data. Human-like Interaction: It needs to be prompted or fine-tuned to converse in a highly natural, empathetic, and human-like manner.'
   },
