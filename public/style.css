@@ -142,40 +142,94 @@ body {
     color: var(--bg);
 }
 
+.nav-btn-secondary {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+
+.nav-btn-secondary:hover {
+    background: var(--bg-elevated);
+    border-color: #555;
+}
+
 .sidebar-bottom {
     padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.sidebar-signature {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-signature span {
+    color: var(--text);
+    font-weight: 600;
 }
 
 .user-chip {
-    background: transparent;
-    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
     color: var(--muted);
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
+    font-size: 0.82rem;
+    margin-bottom: 12px;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .auth-btn-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 0 8px;
 }
 
 .ghost-btn {
-    border: none;
+    flex: 1;
+    border: 1px solid var(--line);
     background: transparent;
     color: var(--muted);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: 8px;
+    padding: 8px;
     text-decoration: none;
     font-size: 0.82rem;
     cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
 }
 
 .ghost-btn:hover {
     background: var(--bg-elevated);
     color: var(--text);
+    border-color: #555;
+}
+
+.ghost-btn.danger:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.ghost-btn.admin:hover {
+    border-color: #fbbf24;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
 }
 
 .main {
@@ -718,6 +772,33 @@ textarea::placeholder {
          m a r g i n - t o p :   2 4 p x ; 
          m a r g i n - b o t t o m :   1 2 p x ; 
          f o n t - w e i g h t :   6 0 0 ; 
+ } 
+  
+ 
+ / *   H e r o   A n i m a t i o n   * / 
+ . h e r o   h 2   { 
+         b a c k g r o u n d :   l i n e a r - g r a d i e n t ( 
+                 t o   r i g h t , 
+                 # f f f f f f   2 0 % , 
+                 # d 1 7 4 5 4   4 0 % , 
+                 # d 1 7 4 5 4   6 0 % , 
+                 # f f f f f f   8 0 % 
+         ) ; 
+         b a c k g r o u n d - s i z e :   2 0 0 %   a u t o ; 
+         c o l o r :   # 0 0 0 ; 
+         b a c k g r o u n d - c l i p :   t e x t ; 
+         t e x t - f i l l - c o l o r :   t r a n s p a r e n t ; 
+         - w e b k i t - b a c k g r o u n d - c l i p :   t e x t ; 
+         - w e b k i t - t e x t - f i l l - c o l o r :   t r a n s p a r e n t ; 
+         a n i m a t i o n :   s h i n e   5 s   l i n e a r   i n f i n i t e ; 
+         f o n t - w e i g h t :   8 0 0 ; 
+         l e t t e r - s p a c i n g :   2 p x ; 
+ } 
+ 
+ @ k e y f r a m e s   s h i n e   { 
+         t o   { 
+                 b a c k g r o u n d - p o s i t i o n :   2 0 0 %   c e n t e r ; 
+         } 
  } 
   
  
