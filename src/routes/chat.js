@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const historyManager = require('../services/history');
-const { generateChatStream } = require('../services/gemini');
+const { generateChatStream, getAvailableModels, getActiveProviders } = require('../services/gemini');
 const { getSupabaseServiceClient, getSupabasePublicConfig } = require('../services/supabase');
 const { getAuthContext, assertThinkingAllowed, assertWithinQuota, incrementUsage, PLAN_LIMITS } = require('../services/access');
 const { checkAdminCredentials, createSessionToken, buildCookie, buildExpiredCookie, requireAdmin } = require('../services/adminAuth');
@@ -324,18 +324,22 @@ router.post('/stream', async (req, res) => {
     const rawMessage = req.body.message;
     const rawImage = req.body.image;
     const rawThinkingLevel = req.body.thinkingLevel;
+    const rawProvider = req.body.provider;
+    const rawModel = req.body.model;
 
     const sessionId = validateSessionId(rawSessionId);
     const message = validateMessage(rawMessage);
     const image = validateImage(rawImage);
     const thinkingLevel = validateThinkingLevel(rawThinkingLevel);
+    const provider = rawProvider || null;
+    const model = rawModel || null;
 
     const authContext = await getAuthContext(req, sessionId);
     await assertWithinQuota(authContext);
     assertThinkingAllowed(authContext, thinkingLevel);
 
     const history = await historyManager.getHistory(sessionId);
-    const stream = await generateChatStream(history, message, image, thinkingLevel, authContext.planType);
+    const stream = await generateChatStream(history, message, image, thinkingLevel, authContext.planType, provider, model);
     await incrementUsage(authContext);
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -372,13 +376,15 @@ router.post('/', async (req, res) => {
     const sessionId = validateSessionId(req.body.sessionId);
     const message = validateMessage(req.body.message);
     const thinkingLevel = validateThinkingLevel(req.body.thinkingLevel);
+    const provider = req.body.provider || null;
+    const model = req.body.model || null;
 
     const authContext = await getAuthContext(req, sessionId);
     await assertWithinQuota(authContext);
     assertThinkingAllowed(authContext, thinkingLevel);
 
     const history = await historyManager.getHistory(sessionId);
-    const stream = await generateChatStream(history, message, null, thinkingLevel, authContext.planType);
+    const stream = await generateChatStream(history, message, null, thinkingLevel, authContext.planType, provider, model);
     await incrementUsage(authContext);
 
     await historyManager.addMessage(sessionId, 'user', message, null, authContext.user?.id || null, thinkingLevel);

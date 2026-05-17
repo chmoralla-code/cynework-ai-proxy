@@ -8,6 +8,9 @@ const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const imagePreview = document.getElementById('imagePreview');
 const removeImageBtn = document.getElementById('removeImageBtn');
 const thinkingLevel = document.getElementById('thinkingLevel');
+const providerSelect = document.getElementById('providerSelect');
+const modelSelect = document.getElementById('modelSelect');
+const modelControlItem = document.getElementById('modelControlItem');
 const usageInfo = document.getElementById('usageInfo');
 
 const openLoginBtn = document.getElementById('openLoginBtn');
@@ -46,6 +49,8 @@ if (!sessionId) {
 let currentImage = null;
 let authMode = 'login';
 let config = null;
+let availableModels = [];
+let availableProviders = [];
 let accessToken = localStorage.getItem('auth_access_token') || null;
 let refreshToken = localStorage.getItem('auth_refresh_token') || null;
 let currentProfile = null;
@@ -384,6 +389,58 @@ const refreshAuthState = async () => {
   }
 };
 
+const fetchAvailableModels = async () => {
+  try {
+    const response = await fetch('/chat/models');
+    if (!response.ok) return;
+    const data = await response.json();
+    availableModels = data.models || [];
+    availableProviders = data.providers || [];
+
+    // Populate provider selector
+    providerSelect.innerHTML = '<option value="auto">Auto (Recommended)</option>';
+    for (const p of availableProviders) {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = p.displayName || p.name;
+      providerSelect.appendChild(opt);
+    }
+
+    // Populate model selector based on selected provider
+    updateModelSelect('auto');
+  } catch (error) {
+    console.warn('Failed to fetch models:', error);
+  }
+};
+
+const updateModelSelect = (providerName) => {
+  modelSelect.innerHTML = '<option value="">Auto</option>';
+  let models = [];
+  if (providerName && providerName !== 'auto') {
+    models = availableModels.filter(m => m.provider === providerName);
+  } else {
+    models = availableModels;
+  }
+  // Show model selector only when there are specific models to choose from
+  const hasModels = models.length > 0;
+  modelControlItem.classList.toggle('visible', hasModels);
+  // Deduplicate by id
+  for (const m of models) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const levels = m.thinkingLevels && m.thinkingLevels.length > 0 ? ' [' + m.thinkingLevels.join(', ') + ']' : '';
+    opt.textContent = (m.name || m.id) + levels;
+    modelSelect.appendChild(opt);
+  }
+};
+
+// Provider change handler
+providerSelect.addEventListener('change', () => {
+  updateModelSelect(providerSelect.value);
+});
+
 const initAuthConfig = async () => {
   try {
     const response = await fetch('/chat/public-config');
@@ -707,7 +764,9 @@ chatForm.addEventListener('submit', async (e) => {
         sessionId,
         message: message || 'Analyze this image',
         image: sentImage,
-        thinkingLevel: thinkingLevel.value
+        thinkingLevel: thinkingLevel.value,
+        provider: providerSelect.value !== 'auto' ? providerSelect.value : undefined,
+        model: modelSelect.value !== '' ? modelSelect.value : undefined
       })
     });
 
@@ -846,6 +905,7 @@ chatForm.addEventListener('submit', async (e) => {
 
 appendMessage('system', 'Welcome to SpeedAI. Register and verify your email for unlimited low-thinking chat.');
 wireSidebarButtons();
+fetchAvailableModels();
 initAuthConfig().catch((error) => {
   console.error(error);
   appendMessage('error', 'Failed to load app configuration.');
